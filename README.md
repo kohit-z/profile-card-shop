@@ -1,13 +1,13 @@
 # GitHub Deco
 
-Embeddable SVG profile cards for GitHub Markdown. Compose profile, stats, and skills into one image, then style it with themes and effects.
+Embeddable SVG profile cards for GitHub Markdown. Compose profile, stats, skills, contact, and donation options into one image, then style it with themes and effects.
 
 ## Embed a card
 
 Drop this into your README and swap in your username, sections, and options:
 
 ```md
-![GitHub card](https://YOUR_DEPLOYMENT_URL/api/card?sections=profile,stats,skills&username=octocat&skills=typescript,react,nodejs&theme=dark&effects=card:shimmer,avatar:orbit,skills:grid)
+![GitHub card](https://YOUR_DEPLOYMENT_URL/api/card?sections=profile,stats,skills&username=octocat&skills=typescript,react,nodejs&theme=dark&effects=background:aurora,card:shimmer,avatar:orbit,skills:grid)
 ```
 
 Replace `YOUR_DEPLOYMENT_URL` with the service host. Section order follows the `sections` query, so you can rearrange or omit pieces:
@@ -28,9 +28,11 @@ Skills only:
 
 | Parameter | Required | Description |
 | --- | --- | --- |
-| `sections` | No | Comma-separated list. Defaults to `profile,stats`. Built-ins: `profile`, `stats`, `skills`. Duplicates are collapsed; order is preserved. |
+| `sections` | No | Comma-separated list. Defaults to `profile,stats`. Built-ins: `profile`, `stats`, `skills`, `contact`, `donate`. Duplicates are collapsed; order is preserved. |
 | `username` | When `profile` or `stats` is included | GitHub username (1–39 chars, letters, numbers, single hyphens). |
 | `skills` | When `skills` is included | Comma-separated skill IDs (see below). |
+| `contact` | When `contact` is included | Comma-separated `platform:value` pairs. Platforms: `email`, `github`, `discord`, `x`. |
+| `donate` | When `donate` is included | Comma-separated `platform:value` pairs. Platforms: `github-sponsors`, `kofi`, `buymeacoffee`, `patreon`, `paypal`, `opencollective`. |
 | `theme` | No | `default`, `dark`, `ocean`, or `sunset`. Defaults to `default`. |
 | `labels` | No | Show skill labels: `true` / `false` (also `1` / `0`). Defaults to `true`. |
 | `effects` | No | Comma-separated `scope:name` assignments (see below). |
@@ -43,19 +45,22 @@ Example:
 
 ## Effects
 
-Assign effects independently to the whole card, the avatar, or a section:
+Assign effects independently to the background, whole card, avatar, or a section:
 
 ```text
-effects=card:shimmer,avatar:orbit,skills:grid
+effects=background:aurora,card:shimmer,avatar:orbit,skills:grid
 ```
 
+- `background:<name>` — animated backdrop behind all content
 - `card:<name>` — whole-card atmosphere
 - `avatar:<name>` — avatar motion (needs a `profile` section)
-- `<section-id>:<name>` — effect inside that section (`profile`, `stats`, or `skills`)
+- `<section-id>:<name>` — effect inside that section (`profile`, `stats`, `skills`, `contact`, or `donate`)
 
 Every target also accepts `none`. An effect assigned to the wrong target returns an SVG error card.
 
 **Avatar:** `pulse`, `orbit`, `glow`, `halo`, `equalizer`, `float`, `vortex`
+
+**Background:** `aurora`, `matrix`
 
 **Card:** `shimmer`, `aurora`, `spark`, `wave`, `beam`, `comet`, `rain`, `neon`, `scan`, `confetti`, `matrix`, `glitch`, `ripple`, `spotlight`
 
@@ -103,6 +108,16 @@ Up to 20 unique identifiers (max 32 chars each). Canonical IDs:
 - Platforms: `github`, `kubernetes`, `vercel`, `cloudflare`, `linux`
 
 Aliases: `node` and `node.js` → `nodejs`. Duplicates that resolve to the same skill render once.
+
+## Contact and donate
+
+Contact and donation sections are informational because links inside an SVG image embedded in GitHub Markdown are not reliably clickable.
+
+```text
+/api/card?sections=contact,donate&contact=email:hello@example.com,github:octocat&donate=github-sponsors:octocat,kofi:octocat&effects=background:matrix,contact:grid
+```
+
+Each section accepts up to six `platform:value` entries. Values may use letters, numbers, `@`, `.`, `_`, `+`, and `-`.
 
 ## Compatibility endpoints
 

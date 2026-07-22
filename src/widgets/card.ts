@@ -1,12 +1,15 @@
 import {
   renderAvatarEffect,
+  renderBackgroundEffect,
   renderCardEffect,
   renderSectionEffect,
   resolveAvatarEffectName,
+  resolveBackgroundEffectName,
   resolveCardEffectName,
   resolveSectionEffectName,
   type AvatarAnchor,
   type AvatarEffectName,
+  type BackgroundEffectName,
   type CardEffectName,
   type EffectFrame,
   type EffectMarkup,
@@ -38,6 +41,7 @@ export interface CardSection {
 }
 
 export interface CardEffects {
+  readonly background?: BackgroundEffectName | string | null
   readonly card?: CardEffectName | string | null
   readonly avatar?: AvatarEffectName | string | null
   readonly sections?: Readonly<Record<string, SectionEffectName | string | null>>
@@ -98,12 +102,21 @@ export function renderCard(options: RenderCardOptions): string {
   const height = sections.reduce((total, section) => total + section.height, 0)
   const theme = getTheme(options.theme)
   const fontFamily = escapeXml(theme.typography.fontFamily)
+  const backgroundEffect = resolveBackgroundEffectName(options.effects?.background)
   const cardEffect = resolveCardEffectName(options.effects?.card)
   const avatarEffect = resolveAvatarEffectName(options.effects?.avatar)
-  const prefix = `card-${theme.name}-${cardEffect}-${avatarEffect}`
+  const prefix =
+    backgroundEffect === 'none'
+      ? `card-${theme.name}-${cardEffect}-${avatarEffect}`
+      : `card-${theme.name}-background-${backgroundEffect}-${cardEffect}-${avatarEffect}`
   const cardClip = `${prefix}-clip`
   const gradient = `${prefix}-gradient`
   const cardFrame = { x: 0, y: 0, width, height }
+  const backgroundMarkup = renderBackgroundEffect(backgroundEffect, {
+    theme,
+    frame: cardFrame,
+    ids: { prefix: `${prefix}-background`, clip: cardClip },
+  })
   const cardMarkup = renderCardEffect(cardEffect, {
     theme,
     frame: cardFrame,
@@ -181,7 +194,7 @@ ${sectionMarkup.overlay ?? ''}
     })
     .join('')
   const cardClipDefinition =
-    cardEffect === 'none'
+    backgroundEffect === 'none' && cardEffect === 'none'
       ? ''
       : `    <clipPath id="${cardClip}">
       <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${theme.card.radius}" />
@@ -195,7 +208,7 @@ ${sectionMarkup.overlay ?? ''}
     )
     .join('\n')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${resolvedTitleId} ${resolvedDescriptionId}" data-theme="${theme.name}" data-sections="${escapeXml(sectionNames)}" data-card-effect="${cardEffect}" data-avatar-effect="${avatarEffect}"${rootData}>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${resolvedTitleId} ${resolvedDescriptionId}" data-theme="${theme.name}" data-sections="${escapeXml(sectionNames)}" data-background-effect="${backgroundEffect}" data-card-effect="${cardEffect}" data-avatar-effect="${avatarEffect}"${rootData}>
   <title id="${resolvedTitleId}">${escapeXml(title)}</title>
   <desc id="${resolvedDescriptionId}">${escapeXml(description)}</desc>
   <defs>
@@ -205,10 +218,12 @@ ${sectionMarkup.overlay ?? ''}
     </linearGradient>
 ${cardClipDefinition}
 ${sectionClipDefinitions}
+${backgroundMarkup.defs ?? ''}
 ${cardMarkup.defs ?? ''}
 ${combineMarkup(scopedMarkups, 'defs')}
   </defs>
   <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${theme.card.radius}" fill="url(#${gradient})" stroke="${theme.colors.border}" stroke-width="${theme.card.borderWidth}" />
+${backgroundMarkup.underlay ?? ''}
 ${cardMarkup.underlay ?? ''}
 ${sectionGroups}
 ${cardMarkup.overlay ?? ''}

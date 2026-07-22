@@ -3,6 +3,7 @@ import {
   effectSupportsTarget,
   resolveEffectName,
   type AvatarEffectName,
+  type BackgroundEffectName,
   type CardEffectName,
   type EffectName,
   type SectionEffectName,
@@ -15,12 +16,23 @@ export const MAX_SKILL_LENGTH = 32
 export const MAX_SKILLS_QUERY_LENGTH = 512
 export const MAX_CARD_SECTIONS_QUERY_LENGTH = 128
 export const MAX_CARD_EFFECTS_QUERY_LENGTH = 512
-export const CARD_SECTION_NAMES = ['profile', 'stats', 'skills'] as const
+export const MAX_LINK_ENTRIES = 6
+export const MAX_LINK_QUERY_LENGTH = 512
+export const MAX_LINK_VALUE_LENGTH = 80
+export const CARD_SECTION_NAMES = [
+  'profile',
+  'stats',
+  'skills',
+  'contact',
+  'donate',
+] as const
 
 export type CardSectionName = (typeof CARD_SECTION_NAMES)[number]
 
 const USERNAME_PATTERN = /^(?!-)(?!.*--)[a-z0-9-]+(?<!-)$/
 const SKILL_PATTERN = /^[a-z0-9][a-z0-9+#.-]*$/
+const LINK_PLATFORM_PATTERN = /^[a-z0-9][a-z0-9-]*$/
+const LINK_VALUE_PATTERN = /^[a-z0-9][a-z0-9@._+-]*$/
 
 export interface QueryError {
   readonly code: string
@@ -52,9 +64,12 @@ export interface CardQuery {
   readonly sections: readonly CardSectionName[]
   readonly username?: string
   readonly skills: readonly string[]
+  readonly contact: readonly string[]
+  readonly donate: readonly string[]
   readonly theme: ThemeName
   readonly labels: boolean
   readonly effects: {
+    readonly background: BackgroundEffectName
     readonly card: CardEffectName
     readonly avatar: AvatarEffectName
     readonly sections: Readonly<Partial<Record<CardSectionName, SectionEffectName>>>
@@ -191,6 +206,56 @@ export function parseSkillsQuery(
   }
 }
 
+function parseLinkEntries(
+  params: URLSearchParams,
+  field: 'contact' | 'donate',
+): QueryResult<readonly string[]> {
+  const rawValue = params.get(field) ?? ''
+  if (rawValue.length > MAX_LINK_QUERY_LENGTH) {
+    return failure(
+      `${field}_too_long`,
+      `The ${field} query must not exceed ${MAX_LINK_QUERY_LENGTH} characters.`,
+    )
+  }
+
+  const entries = [
+    ...new Set(
+      rawValue
+        .split(',')
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ]
+  if (entries.length === 0) {
+    return failure(`${field}_required`, `At least one ${field} option is required.`)
+  }
+  if (entries.length > MAX_LINK_ENTRIES) {
+    return failure(
+      `${field}_limit`,
+      `No more than ${MAX_LINK_ENTRIES} ${field} options can be rendered.`,
+    )
+  }
+
+  for (const entry of entries) {
+    const [platform, value, extra] = entry.split(':')
+    if (
+      !platform ||
+      !value ||
+      extra !== undefined ||
+      !LINK_PLATFORM_PATTERN.test(platform) ||
+      value.length > MAX_LINK_VALUE_LENGTH ||
+      !LINK_VALUE_PATTERN.test(value)
+    ) {
+      return failure(
+        `${field}_invalid`,
+        `${field[0].toUpperCase()}${field.slice(1)} options must use platform:value with a safe value up to ${MAX_LINK_VALUE_LENGTH} characters.`,
+      )
+    }
+  }
+
+  return { ok: true, value: entries }
+}
+
 export function parseCardQuery(
   params: URLSearchParams,
 ): QueryResult<CardQuery> {
@@ -235,6 +300,21 @@ export function parseCardQuery(
     labels = parsedSkills.value.labels
   }
 
+  let contact: readonly string[] = []
+  if (typedSections.includes('contact')) {
+    const parsedContact = parseLinkEntries(params, 'contact')
+    if (!parsedContact.ok) return parsedContact
+    contact = parsedContact.value
+  }
+
+  let donate: readonly string[] = []
+  if (typedSections.includes('donate')) {
+    const parsedDonate = parseLinkEntries(params, 'donate')
+    if (!parsedDonate.ok) return parsedDonate
+    donate = parsedDonate.value
+  }
+
+  let background: BackgroundEffectName = 'none'
   let card: CardEffectName = 'none'
   let avatar: AvatarEffectName = 'none'
   const sectionEffects: Partial<Record<CardSectionName, SectionEffectName>> = {}
@@ -262,6 +342,13 @@ export function parseCardQuery(
       )
     }
 
+    if (
+      scope === 'background' &&
+      effectSupportsTarget(name as EffectName, 'background')
+    ) {
+      background = name as BackgroundEffectName
+      continue
+    }
     if (scope === 'card' && effectSupportsTarget(name as EffectName, 'card')) {
       card = name as CardEffectName
       continue
@@ -308,9 +395,11 @@ export function parseCardQuery(
       sections: typedSections,
       username: username?.value,
       skills,
+      contact,
+      donate,
       theme: resolveThemeName(params.get('theme')),
       labels,
-      effects: { card, avatar, sections: sectionEffects },
+      effects: { background, card, avatar, sections: sectionEffects },
     },
   }
 }

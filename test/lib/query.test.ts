@@ -165,6 +165,41 @@ describe('parseSkillsQuery', () => {
 })
 
 describe('parseCardQuery', () => {
+  it('parses background effects and contact and donate sections', () => {
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'contact,donate',
+          contact: ' Email:Hello@Example.com, GitHub:Octocat ',
+          donate: 'Kofi:Octocat,github-sponsors:Octocat',
+          effects: 'background:aurora,contact:grid',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        sections: ['contact', 'donate'],
+        contact: ['email:hello@example.com', 'github:octocat'],
+        donate: ['kofi:octocat', 'github-sponsors:octocat'],
+        effects: {
+          background: 'aurora',
+          sections: { contact: 'grid' },
+        },
+      },
+    })
+  })
+
+  it.each([
+    [{ sections: 'contact' }, 'contact_required'],
+    [{ sections: 'donate' }, 'donate_required'],
+    [{ sections: 'contact', contact: 'email:https://example.com' }, 'contact_invalid'],
+  ])('rejects invalid link section fields %#', (query, code) => {
+    expect(parseCardQuery(new URLSearchParams(query))).toMatchObject({
+      ok: false,
+      error: { code },
+    })
+  })
+
   it.each([
     [
       'avatar',
@@ -215,6 +250,24 @@ describe('parseCardQuery', () => {
       error: {
         code: 'effect_invalid',
         message: 'Effect "shimmer" cannot target "avatar".',
+      },
+    })
+  })
+
+  it('rejects non-background effects on the background target', () => {
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'skills',
+          skills: 'typescript',
+          effects: 'background:shimmer',
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: {
+        code: 'effect_invalid',
+        message: 'Effect "shimmer" cannot target "background".',
       },
     })
   })

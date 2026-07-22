@@ -1,6 +1,7 @@
 import { SKILL_CATALOG, SKILL_IDS } from '../data/skills.js'
 import {
   AVATAR_EFFECT_NAMES,
+  BACKGROUND_EFFECT_NAMES,
   CARD_EFFECT_NAMES,
   EFFECT_CATALOG,
   SECTION_EFFECT_NAMES,
@@ -25,7 +26,7 @@ function escapeHtml(value: string): string {
 
 function effectButtons(
   names: readonly EffectName[],
-  scope: 'card' | 'avatar' | CardSectionName,
+  scope: 'background' | 'card' | 'avatar' | CardSectionName,
   selected: EffectName = 'none',
 ): string {
   return names
@@ -57,7 +58,7 @@ export function renderGalleryPage(origin: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GitHub Deco — composable README cards</title>
-  <meta name="description" content="Build one SVG card from profile, stats, skills, and extensible sections." />
+  <meta name="description" content="Build one SVG card from profile, stats, skills, contact, donate, and extensible sections." />
   <style>
     :root { color-scheme: light; --ink:#15231d; --muted:#53645c; --paper:#edf4ef; --panel:#ffffffd9; --line:#cad8d0; --accent:#087c5d; --soft:#dff1e9; }
     * { box-sizing:border-box; }
@@ -91,18 +92,23 @@ export function renderGalleryPage(origin: string): string {
 <main>
   <header>
     <h1>Compose one card.</h1>
-    <p>Add and order reusable sections, then apply effects to the whole card, its avatar, or an individual section.</p>
+    <p>Add and order reusable sections, then apply effects to the background, card, avatar, or an individual section.</p>
   </header>
   <section id="playground" class="layout" aria-label="Composable card playground">
     <div class="panel controls">
       <div class="field"><span class="label">Sections</span><div class="chips">${sectionButtons}</div></div>
       <div class="field"><label for="username">GitHub username</label><input id="username" value="octocat" autocomplete="off" spellcheck="false" /></div>
       <div class="field"><span class="label">Skills</span><div class="chips">${skillButtons}</div></div>
+      <div class="field"><label for="contact">Contact options</label><input id="contact" value="email:hello@example.com,github:octocat" autocomplete="off" spellcheck="false" /><p class="note">Use comma-separated platform:value pairs.</p></div>
+      <div class="field"><label for="donate">Donate options</label><input id="donate" value="github-sponsors:octocat,kofi:octocat" autocomplete="off" spellcheck="false" /><p class="note">Use comma-separated platform:value pairs.</p></div>
       <div class="field"><span class="label">Theme</span><div class="chips">${themeButtons}</div></div>
+      <div class="field"><span class="label">Background effect</span><div class="chips">${effectButtons(BACKGROUND_EFFECT_NAMES, 'background')}</div></div>
       <div class="field"><span class="label">Card effect</span><div class="chips">${effectButtons(CARD_EFFECT_NAMES, 'card')}</div></div>
       <div class="field"><span class="label">Avatar effect</span><div class="chips">${effectButtons(AVATAR_EFFECT_NAMES, 'avatar', 'pulse')}</div></div>
       <div class="field"><span class="label">Stats section effect</span><div class="chips">${effectButtons(SECTION_EFFECT_NAMES, 'stats')}</div></div>
       <div class="field"><span class="label">Skills section effect</span><div class="chips">${effectButtons(SECTION_EFFECT_NAMES, 'skills')}</div></div>
+      <div class="field"><span class="label">Contact section effect</span><div class="chips">${effectButtons(SECTION_EFFECT_NAMES, 'contact')}</div></div>
+      <div class="field"><span class="label">Donate section effect</span><div class="chips">${effectButtons(SECTION_EFFECT_NAMES, 'donate')}</div></div>
       <p class="note">The renderer also accepts custom programmatic sections through <code>defineCardSection</code>. Legacy <code>/api/profile</code> and <code>/api/skills</code> URLs remain available as wrappers.</p>
     </div>
     <div class="panel workspace">
@@ -119,10 +125,12 @@ export function renderGalleryPage(origin: string): string {
   const origin = ${JSON.stringify(pageOrigin)};
   const state = {
     username: "octocat",
-    sections: new Set(["profile", "stats", "skills"]),
+    sections: new Set(["profile", "stats", "skills", "contact", "donate"]),
     skills: new Set(${JSON.stringify([...DEFAULT_SKILLS])}),
+    contact: "email:hello@example.com,github:octocat",
+    donate: "github-sponsors:octocat,kofi:octocat",
     theme: "default",
-    effects: { card: "none", avatar: "pulse", stats: "none", skills: "none" }
+    effects: { background: "none", card: "none", avatar: "pulse", stats: "none", skills: "none", contact: "none", donate: "none" }
   };
   const image = document.getElementById("card-img");
   const preview = document.getElementById("preview");
@@ -137,10 +145,13 @@ export function renderGalleryPage(origin: string): string {
       const skills = [...state.skills];
       params.set("skills", (skills.length ? skills : ["typescript"]).join(","));
     }
+    if (sections.includes("contact")) params.set("contact", state.contact || "email:hello@example.com");
+    if (sections.includes("donate")) params.set("donate", state.donate || "github-sponsors:octocat");
     const effects = [];
+    if (state.effects.background !== "none") effects.push("background:" + state.effects.background);
     if (state.effects.card !== "none") effects.push("card:" + state.effects.card);
     if (sections.includes("profile") && state.effects.avatar !== "none") effects.push("avatar:" + state.effects.avatar);
-    for (const section of ["stats", "skills"]) {
+    for (const section of ["stats", "skills", "contact", "donate"]) {
       if (sections.includes(section) && state.effects[section] !== "none") effects.push(section + ":" + state.effects[section]);
     }
     if (effects.length) params.set("effects", effects.join(","));
@@ -168,6 +179,13 @@ export function renderGalleryPage(origin: string): string {
     clearTimeout(timer);
     timer = setTimeout(refresh, 300);
   });
+  for (const field of ["contact", "donate"]) {
+    document.getElementById(field).addEventListener("input", (event) => {
+      state[field] = event.target.value.trim().toLowerCase();
+      clearTimeout(timer);
+      timer = setTimeout(refresh, 300);
+    });
+  }
   document.querySelectorAll("[data-section]").forEach((button) => button.addEventListener("click", () => {
     const name = button.dataset.section;
     if (state.sections.has(name)) {

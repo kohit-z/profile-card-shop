@@ -1,7 +1,7 @@
 import type { Theme } from '../themes/index.js'
 import type { EffectName } from './registry.js'
 
-export type EffectTarget = 'avatar' | 'card' | 'section'
+export type EffectTarget = 'avatar' | 'background' | 'card' | 'section'
 
 export interface EffectFrame {
   readonly x: number

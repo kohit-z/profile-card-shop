@@ -12,11 +12,11 @@ interface TargetedEffectMeta<
 }
 
 const definitions = [
-  { name: 'none', target: 'card', targets: ['card', 'avatar', 'section'], label: 'None', description: 'Static content with no motion.' },
+  { name: 'none', target: 'card', targets: ['background', 'card', 'avatar', 'section'], label: 'None', description: 'Static content with no motion.' },
   { name: 'pulse', target: 'avatar', targets: ['avatar'], label: 'Pulse', description: 'Breathing accent rings around an avatar.' },
   { name: 'shimmer', target: 'card', targets: ['card'], label: 'Shimmer', description: 'A light sweep across the card.' },
   { name: 'orbit', target: 'avatar', targets: ['avatar'], label: 'Orbit', description: 'Accent dots orbiting an avatar.' },
-  { name: 'aurora', target: 'card', targets: ['card'], label: 'Aurora', description: 'A shifting gradient atmosphere.' },
+  { name: 'aurora', target: 'card', targets: ['background', 'card'], label: 'Aurora', description: 'A shifting gradient atmosphere.' },
   { name: 'spark', target: 'card', targets: ['card'], label: 'Spark', description: 'Twinkling particles across the card.' },
   { name: 'wave', target: 'card', targets: ['card'], label: 'Wave', description: 'An undulating ribbon along the card base.' },
   { name: 'glow', target: 'avatar', targets: ['avatar'], label: 'Glow', description: 'A radial glow blooming behind an avatar.' },
@@ -29,7 +29,7 @@ const definitions = [
   { name: 'neon', target: 'card', targets: ['card'], label: 'Neon', description: 'A flickering neon card border.' },
   { name: 'scan', target: 'card', targets: ['card'], label: 'Scan', description: 'A retro scanline sweeping down the card.' },
   { name: 'confetti', target: 'card', targets: ['card'], label: 'Confetti', description: 'Confetti tumbling down the card.' },
-  { name: 'matrix', target: 'card', targets: ['card'], label: 'Matrix', description: 'Digital glyph streams behind the content.' },
+  { name: 'matrix', target: 'card', targets: ['background', 'card'], label: 'Matrix', description: 'Digital glyph streams behind the content.' },
   { name: 'glitch', target: 'card', targets: ['card'], label: 'Glitch', description: 'Chromatic slices snapping sideways.' },
   { name: 'radar', target: 'section', targets: ['section'], label: 'Radar', description: 'A scanner sweep inside a section.' },
   { name: 'constellation', target: 'section', targets: ['section'], label: 'Constellation', description: 'Connected stars inside a section.' },
@@ -55,6 +55,7 @@ export type EffectNameForTarget<Target extends EffectTarget> =
     : never
 
 export type AvatarEffectName = EffectNameForTarget<'avatar'>
+export type BackgroundEffectName = EffectNameForTarget<'background'>
 export type CardEffectName = EffectNameForTarget<'card'>
 export type SectionEffectName = EffectNameForTarget<'section'>
 
@@ -71,6 +72,9 @@ export const EFFECT_NAMES = definitions.map(
 export const AVATAR_EFFECT_NAMES = definitions
   .filter((definition) => definitionSupportsTarget(definition, 'avatar'))
   .map((definition) => definition.name) as readonly AvatarEffectName[]
+export const BACKGROUND_EFFECT_NAMES = definitions
+  .filter((definition) => definitionSupportsTarget(definition, 'background'))
+  .map((definition) => definition.name) as readonly BackgroundEffectName[]
 export const CARD_EFFECT_NAMES = definitions
   .filter((definition) => definitionSupportsTarget(definition, 'card'))
   .map((definition) => definition.name) as readonly CardEffectName[]
@@ -120,6 +124,10 @@ export function resolveEffectNameForTarget<Target extends EffectTarget>(
 export const resolveAvatarEffectName = (
   value: string | null | undefined,
 ): AvatarEffectName => resolveEffectNameForTarget(value, 'avatar')
+
+export const resolveBackgroundEffectName = (
+  value: string | null | undefined,
+): BackgroundEffectName => resolveEffectNameForTarget(value, 'background')
 
 export const resolveCardEffectName = (
   value: string | null | undefined,

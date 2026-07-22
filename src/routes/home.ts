@@ -1,8 +1,13 @@
 import { Hono } from 'hono'
 
+import {
+  CONTACT_PLATFORM_IDS,
+  DONATE_PLATFORM_IDS,
+} from '../data/links.js'
 import { SKILL_IDS } from '../data/skills.js'
 import {
   AVATAR_EFFECT_NAMES,
+  BACKGROUND_EFFECT_NAMES,
   CARD_EFFECT_NAMES,
   EFFECT_NAMES,
   SECTION_EFFECT_NAMES,
@@ -42,7 +47,7 @@ homeRoutes.get('/meta', (context) =>
       },
       card: {
         method: 'GET',
-        path: '/api/card?sections=<section,section>&username=<name>&skills=<skill,skill>&effects=<scope:name>',
+        path: '/api/card?sections=<section,section>&username=<name>&skills=<skill,skill>&contact=<platform:value>&donate=<platform:value>&effects=<scope:name>',
         status: 'available',
       },
       profile: {
@@ -59,12 +64,15 @@ homeRoutes.get('/meta', (context) =>
     themes: THEME_NAMES,
     effects: EFFECT_NAMES,
     effectGroups: {
+      background: BACKGROUND_EFFECT_NAMES,
       card: CARD_EFFECT_NAMES,
       avatar: AVATAR_EFFECT_NAMES,
       section: SECTION_EFFECT_NAMES,
     },
     sections: CARD_SECTION_NAMES,
     skills: SKILL_IDS,
+    contactPlatforms: CONTACT_PLATFORM_IDS,
+    donatePlatforms: DONATE_PLATFORM_IDS,
   }),
 )
 

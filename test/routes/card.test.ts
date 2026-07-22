@@ -84,6 +84,26 @@ describe('GET /api/card', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('renders contact and donate sections with an independent background effect', async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await app.request(
+      '/api/card?sections=contact,donate&contact=email:hello%40example.com,github:octocat&donate=kofi:octocat,github-sponsors:octocat&effects=background:matrix,contact:grid',
+    )
+    const svg = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(svg).toContain('data-sections="contact,donate"')
+    expect(svg).toContain('data-background-effect="matrix"')
+    expect(svg).toContain('data-effect-layer="background"')
+    expect(svg).toContain('data-section="contact"')
+    expect(svg).toContain('data-section-effect="grid"')
+    expect(svg).toContain('data-contact="email"')
+    expect(svg).toContain('data-donate="kofi"')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('does not download an avatar for a stats-only card', async () => {
     mockProfile()
 
@@ -149,6 +169,10 @@ describe('GET /api/card', () => {
   it.each([
     ['/api/card?sections=profile', 'username_required'],
     ['/api/card?sections=skills', 'skills_required'],
+    ['/api/card?sections=contact', 'contact_required'],
+    ['/api/card?sections=donate', 'donate_required'],
+    ['/api/card?sections=contact&contact=unknown:value', 'contact_unknown'],
+    ['/api/card?sections=donate&donate=unknown:value', 'donate_unknown'],
     ['/api/card?sections=unknown', 'section_unknown'],
     [
       '/api/card?sections=skills&skills=typescript&effects=avatar:shimmer',
