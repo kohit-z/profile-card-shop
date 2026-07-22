@@ -127,6 +127,22 @@ describe('fetchGitHubProfile', () => {
     expect(fetchMock.mock.calls[2][1]).not.toHaveProperty('headers')
   })
 
+  it('skips the avatar request when only statistics are needed', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(graphQlResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const profile = await fetchGitHubProfile('octocat', {
+      token: 'secret-token',
+      includeAvatar: false,
+    })
+
+    expect(profile.avatarDataUrl).toBe('')
+    expect(profile.stars).toBe(7)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a missing token before making a request', async () => {
     const fetchMock = vi.fn<typeof fetch>()
     vi.stubGlobal('fetch', fetchMock)

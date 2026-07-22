@@ -1,7 +1,13 @@
 import { Hono } from 'hono'
 
 import { SKILL_IDS } from '../data/skills.js'
-import { EFFECT_NAMES } from '../effects/index.js'
+import {
+  AVATAR_EFFECT_NAMES,
+  CARD_EFFECT_NAMES,
+  EFFECT_NAMES,
+  SECTION_EFFECT_NAMES,
+} from '../effects/index.js'
+import { CARD_SECTION_NAMES } from '../lib/query.js'
 import { THEME_NAMES } from '../themes/index.js'
 import { renderGalleryPage } from '../ui/gallery.js'
 
@@ -34,6 +40,11 @@ homeRoutes.get('/meta', (context) =>
         path: '/meta',
         status: 'available',
       },
+      card: {
+        method: 'GET',
+        path: '/api/card?sections=<section,section>&username=<name>&skills=<skill,skill>&effects=<scope:name>',
+        status: 'available',
+      },
       profile: {
         method: 'GET',
         path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>',
@@ -47,6 +58,12 @@ homeRoutes.get('/meta', (context) =>
     },
     themes: THEME_NAMES,
     effects: EFFECT_NAMES,
+    effectGroups: {
+      card: CARD_EFFECT_NAMES,
+      avatar: AVATAR_EFFECT_NAMES,
+      section: SECTION_EFFECT_NAMES,
+    },
+    sections: CARD_SECTION_NAMES,
     skills: SKILL_IDS,
   }),
 )
