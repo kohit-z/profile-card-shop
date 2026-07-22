@@ -1,225 +1,114 @@
 # GitHub Deco
 
-GitHub Deco serves embeddable SVG image responses for GitHub Markdown. Use the profile card to show public GitHub profile statistics and the skills card to show a themed set of technology icons.
+Embeddable SVG profile cards for GitHub Markdown. Compose profile, stats, and skills into one image, then style it with themes and effects.
 
-The service index and health check return JSON; the `/api/profile` and `/api/skills` endpoints return `image/svg+xml`.
+## Embed a card
 
-## Prerequisites
-
-- Node.js 20 or newer
-- npm
-- A GitHub access token for profile cards
-- A Vercel account only if you want to deploy the service
-
-## Local setup
-
-Install dependencies and create your local environment file:
-
-```sh
-npm install
-cp .env.example .env
-```
-
-Set `GITHUB_TOKEN` in `.env`:
-
-```dotenv
-GITHUB_TOKEN=your_github_token
-```
-
-The token is used server-side to query GitHub's GraphQL API for public profile data. Keep it secret: never put it in a card URL, GitHub README, browser code, commit, or log. Use a least-privilege token and revoke or rotate it if it is exposed. The skills endpoint does not require the token.
-
-Start the local development server:
-
-```sh
-npm run dev
-```
-
-Quality commands:
-
-```sh
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-`npm run build` type-checks the project and bundles the application into `dist/`
-as a production-oriented smoke check. Vercel still deploys the source entrypoint
-directly through its native Hono support.
-
-## Deploy to Vercel
-
-This project uses Vercel's zero-configuration Hono support: `src/index.ts` exports the Hono application as the default export, so no `vercel.json` is required.
-
-Import the repository into Vercel or run `npx vercel`, then add `GITHUB_TOKEN` in the project's Environment Variables settings for every environment that should render profile cards. Redeploy after adding or changing the variable. These are deployment instructions only; this repository does not imply that a deployment has occurred.
-
-## Use in GitHub Markdown
-
-Replace `YOUR_DEPLOYMENT_URL` with your deployment hostname.
-
-Profile card:
+Drop this into your README and swap in your username, sections, and options:
 
 ```md
-![GitHub profile](https://YOUR_DEPLOYMENT_URL/api/profile?username=octocat&theme=dark&effect=orbit)
+![GitHub card](https://YOUR_DEPLOYMENT_URL/api/card?sections=profile,stats,skills&username=octocat&skills=typescript,react,nodejs&theme=dark&effects=card:shimmer,avatar:orbit,skills:grid)
 ```
 
-Skills card:
+Replace `YOUR_DEPLOYMENT_URL` with the service host. Section order follows the `sections` query, so you can rearrange or omit pieces:
 
 ```md
-![Skills](https://YOUR_DEPLOYMENT_URL/api/skills?skills=typescript,react,nodejs&theme=ocean&labels=true)
+![GitHub card](https://YOUR_DEPLOYMENT_URL/api/card?sections=skills,profile,stats&username=octocat&skills=github,docker,kubernetes)
 ```
 
-Icons without visible labels:
+Skills only:
 
 ```md
-![Skills](https://YOUR_DEPLOYMENT_URL/api/skills?skills=github,docker,kubernetes&theme=sunset&labels=false)
+![Skills](https://YOUR_DEPLOYMENT_URL/api/card?sections=skills&skills=typescript,react,nodejs&theme=ocean&labels=true)
 ```
 
-## Endpoints
+## Customize with `/api/card`
 
-### `GET /`
+`GET /api/card` returns one SVG assembled from ordered sections.
 
-Returns JSON service metadata, including the available routes, themes, and canonical skill IDs.
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `sections` | No | Comma-separated list. Defaults to `profile,stats`. Built-ins: `profile`, `stats`, `skills`. Duplicates are collapsed; order is preserved. |
+| `username` | When `profile` or `stats` is included | GitHub username (1–39 chars, letters, numbers, single hyphens). |
+| `skills` | When `skills` is included | Comma-separated skill IDs (see below). |
+| `theme` | No | `default`, `dark`, `ocean`, or `sunset`. Defaults to `default`. |
+| `labels` | No | Show skill labels: `true` / `false` (also `1` / `0`). Defaults to `true`. |
+| `effects` | No | Comma-separated `scope:name` assignments (see below). |
 
-### `GET /health`
-
-Returns a JSON health response:
-
-```json
-{
-  "status": "ok",
-  "service": "github-deco"
-}
-```
-
-### `GET /api/profile`
-
-Returns an SVG profile card.
-
-- `username` is required. It is trimmed, lowercased, and must be 1-39 characters using letters, numbers, and single hyphens. It cannot begin or end with a hyphen or contain consecutive hyphens.
-- `theme` is optional and defaults to `default`. An omitted or unsupported value also resolves to `default`.
-- `effect` is optional and defaults to `pulse`. An omitted or unsupported value also resolves to `pulse`.
-- The endpoint requires a configured `GITHUB_TOKEN`.
-- Requests are redirected to one canonical query form before GitHub is called. Repository star totals are paginated up to 1,000 public owned repositories; larger profiles receive a safe SVG error instead of a partial total.
-
-Example request:
+Example:
 
 ```text
-/api/profile?username=octocat&theme=dark&effect=orbit
+/api/card?sections=profile,stats,skills&username=octocat&skills=typescript,react&theme=dark&effects=card:shimmer,avatar:orbit,skills:grid
 ```
 
-### `GET /api/skills`
+## Effects
 
-Returns an SVG skills card.
-
-- `skills` is required and accepts comma-separated identifiers. Values are trimmed and lowercased, empty entries are removed, and duplicates are collapsed.
-- The raw `skills` query is limited to 512 characters.
-- At most 20 unique submitted identifiers can be rendered.
-- Each identifier is limited to 32 characters and may use lowercase letters, numbers, `+`, `#`, `.`, and `-`; it must begin with a letter or number.
-- Unknown but syntactically valid identifiers return an SVG error card.
-- `theme` is optional and defaults to `default`. An omitted or unsupported value also resolves to `default`.
-- `labels` is optional and defaults to `true`. Accepted values are `true`, `false`, `1`, and `0`; an empty value also uses `true`.
-
-Example request:
+Assign effects independently to the whole card, the avatar, or a section:
 
 ```text
-/api/skills?skills=typescript,react,nodejs&theme=ocean&labels=true
+effects=card:shimmer,avatar:orbit,skills:grid
 ```
 
-## Themes
+- `card:<name>` — whole-card atmosphere
+- `avatar:<name>` — avatar motion (needs a `profile` section)
+- `<section-id>:<name>` — effect inside that section (`profile`, `stats`, or `skills`)
 
-Supported themes are `default`, `dark`, `ocean`, and `sunset`.
+Every target also accepts `none`. An effect assigned to the wrong target returns an SVG error card.
 
-## Profile effects
+**Avatar:** `pulse`, `orbit`, `glow`, `halo`, `equalizer`, `float`, `vortex`
 
-Supported effect candidates:
+**Card:** `shimmer`, `aurora`, `spark`, `wave`, `beam`, `comet`, `rain`, `neon`, `scan`, `confetti`, `matrix`, `glitch`, `ripple`, `spotlight`
+
+**Section:** `radar`, `constellation`, `grid`
 
 | Effect | Character |
 | --- | --- |
-| `none` | Static card with no motion |
-| `pulse` | Breathing accent ring around the avatar (default) |
-| `shimmer` | Diagonal light sweep across the card |
+| `none` | Static, no motion |
+| `pulse` | Breathing accent ring around the avatar |
 | `orbit` | Accent dots orbiting the avatar |
+| `glow` | Warm radial glow behind the avatar |
+| `halo` | Counter-rotating dashed rings around the avatar |
+| `equalizer` | Bouncing bars beneath the avatar |
+| `float` | Avatar hovering over a drifting shadow |
+| `vortex` | Elliptical arcs spiraling around the avatar |
+| `shimmer` | Diagonal light sweep across the card |
 | `aurora` | Shifting multi-stop gradient atmosphere |
 | `spark` | Twinkling particles across the card |
 | `wave` | Soft undulating ribbon along the base |
-| `glow` | Warm radial glow blooming behind the avatar |
 | `beam` | Light beams racing around the card border |
 | `comet` | Comets streaking across the card |
-| `rain` | Accent streaks raining down behind the content |
-| `halo` | Counter-rotating dashed rings around the avatar |
-| `equalizer` | Bouncing equalizer bars beneath the avatar |
-| `float` | Avatar hovering gently over a drifting shadow |
+| `rain` | Accent streaks raining behind the content |
 | `neon` | Flickering neon border glow |
 | `scan` | Retro scanline sweeping down the card |
-| `confetti` | Confetti pieces tumbling down the card |
-| `matrix` | Digital glyph columns streaming behind the profile |
-| `glitch` | Chromatic slices snapping sideways in short bursts |
-| `radar` | Rotating scanner sweep with pulsing target points |
-| `constellation` | Connected stars drifting and blinking behind the stats |
-| `ripple` | Expanding energy rings traveling across the card |
-| `spotlight` | Broad theatrical light cones sweeping across the profile |
-| `vortex` | Layered elliptical arcs spiraling around the avatar |
-| `grid` | Perspective grid surging with traveling energy pulses |
+| `confetti` | Confetti tumbling down the card |
+| `matrix` | Digital glyph columns streaming behind the content |
+| `glitch` | Chromatic slices snapping sideways |
+| `ripple` | Expanding energy rings across the card |
+| `spotlight` | Broad light cones sweeping the card |
+| `radar` | Rotating scanner sweep inside a section |
+| `constellation` | Connected stars inside a section |
+| `grid` | Perspective energy grid inside a section |
 
-Profile stats use icons for followers, repositories, stars, and contributions, plus a GitHub mark beside the username.
+## Themes
 
-## Skill identifiers
+`default`, `dark`, `ocean`, `sunset`
 
-Supported canonical IDs:
+## Skills
+
+Up to 20 unique identifiers (max 32 chars each). Canonical IDs:
 
 - Languages: `javascript`, `typescript`, `python`, `go`, `rust`
 - Frameworks: `react`, `nextjs`, `vue`, `nodejs`, `hono`
 - Tools: `git`, `docker`, `npm`, `pnpm`, `postgres`
 - Platforms: `github`, `kubernetes`, `vercel`, `cloudflare`, `linux`
 
-Supported aliases:
+Aliases: `node` and `node.js` → `nodejs`. Duplicates that resolve to the same skill render once.
 
-- `node` → `nodejs`
-- `node.js` → `nodejs`
+## Compatibility endpoints
 
-Aliases and canonical IDs that resolve to the same skill are rendered once.
+Older single-purpose URLs still work:
 
-## Caching and errors
+- `/api/profile?username=octocat&theme=dark&effect=orbit` — profile + stats card
+- `/api/skills?skills=typescript,react,nodejs&theme=ocean&labels=true` — skills card
 
-Successful SVG cards include:
-
-```text
-Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400
-Content-Type: image/svg+xml; charset=UTF-8
-X-Content-Type-Options: nosniff
-```
-
-This allows a shared cache to serve a successful card for one hour and continue serving it stale for up to one day while revalidating.
-
-Validation, configuration, and upstream failures are rendered as readable SVG error cards with HTTP status `200`. Returning an image with status `200` lets GitHub Markdown display the error instead of a broken image. Error responses use `Cache-Control: no-store` and include an `X-GitHub-Deco-Error` header containing a machine-readable code such as `username_required`, `skill_unknown`, or `missing_token`.
-
-The profile endpoint spends your deployment's shared GitHub API quota. Before
-publishing a high-traffic instance, configure request-rate rules in Vercel
-Firewall for `/api/profile`; canonical redirects and CDN caching reduce duplicate
-work but are not a substitute for deployment-level abuse protection.
-
-Unknown routes are normal HTTP `404` responses rather than SVG cards.
-
-## Project structure
-
-```text
-src/index.ts          Hono application and route mounting
-src/routes/           Service, health, profile, and skills handlers
-src/services/         GitHub API integration
-src/widgets/          Profile and skills SVG renderers
-src/effects/          Profile card motion effect candidates
-src/themes/           Theme definitions and fallback behavior
-src/data/             Skill catalog and aliases
-src/lib/              Query validation and safe SVG helpers
-src/ui/               Interactive gallery page
-test/                 Unit, route, service, and app smoke tests
-```
-
-## Security
-
-- Secrets stay in environment variables; `.env` files are ignored by Git.
-- User-controlled text is validated, bounded, and XML-escaped before entering SVG.
-- Profile avatars are accepted only from GitHub's trusted HTTPS avatar host, restricted to supported image media types, limited to 2 MB, and embedded as data URLs.
-- Skill icons are bundled locally rather than loaded from third-party URLs.
-- Error cards expose stable error codes and safe messages without leaking tokens or raw upstream details.
+Prefer `/api/card` for new embeds so you can mix sections and target effects independently.

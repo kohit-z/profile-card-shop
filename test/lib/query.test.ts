@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   MAX_SKILLS,
+  parseCardQuery,
   parseProfileQuery,
   parseSkillsQuery,
 } from '../../src/lib/query'
@@ -159,6 +160,62 @@ describe('parseSkillsQuery', () => {
     expect(result).toMatchObject({
       ok: false,
       error: { code: 'skills_too_long' },
+    })
+  })
+})
+
+describe('parseCardQuery', () => {
+  it.each([
+    [
+      'avatar',
+      { sections: 'stats', username: 'octocat', effects: 'avatar:pulse' },
+    ],
+    [
+      'skills',
+      { sections: 'profile', username: 'octocat', effects: 'skills:grid' },
+    ],
+  ])('rejects an effect for an absent %s target', (_scope, query) => {
+    expect(parseCardQuery(new URLSearchParams(query))).toMatchObject({
+      ok: false,
+      error: { code: 'effect_invalid' },
+    })
+  })
+
+  it('allows none effects for absent targets', () => {
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'skills',
+          skills: 'typescript',
+          effects: 'avatar:none,profile:none,stats:none',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        effects: {
+          avatar: 'none',
+          sections: { profile: 'none', stats: 'none' },
+        },
+      },
+    })
+  })
+
+  it('still rejects effects used with the wrong target type', () => {
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'profile',
+          username: 'octocat',
+          effects: 'avatar:shimmer',
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: {
+        code: 'effect_invalid',
+        message: 'Effect "shimmer" cannot target "avatar".',
+      },
     })
   })
 })

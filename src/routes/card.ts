@@ -1,0 +1,137 @@
+import { Hono } from 'hono'
+
+import { resolveSkills } from '../data/skills.js'
+import { parseCardQuery } from '../lib/query.js'
+import { svgErrorResponse, svgResponse, truncateText } from '../lib/svg.js'
+import {
+  fetchGitHubProfile,
+  GitHubServiceError,
+} from '../services/github.js'
+import { DEFAULT_THEME_NAME } from '../themes/index.js'
+import { CARD_WIDTH, renderCard, type CardSection } from '../widgets/card.js'
+import {
+  createProfileSection,
+  createStatsSection,
+  type ProfileCardData,
+} from '../widgets/sections/profile.js'
+import { createSkillsSection } from '../widgets/sections/skills.js'
+
+export const cardRoutes = new Hono()
+
+cardRoutes.get('/card', async (context) => {
+  const requestUrl = new URL(context.req.url)
+  const query = parseCardQuery(requestUrl.searchParams)
+
+  if (!query.ok) {
+    return svgErrorResponse({
+      code: query.error.code,
+      title: 'Invalid card request',
+      message: query.error.message,
+      width: CARD_WIDTH,
+      height: 120,
+      status: 200,
+    })
+  }
+
+  const resolvedSkills = resolveSkills(query.value.skills)
+  if (resolvedSkills.unknown) {
+    return svgErrorResponse({
+      code: 'skill_unknown',
+      title: 'Invalid card request',
+      message: `Unknown skill identifier: ${truncateText(resolvedSkills.unknown, 32)}.`,
+      theme: query.value.theme,
+      width: CARD_WIDTH,
+      height: 120,
+      status: 200,
+    })
+  }
+
+  const canonicalParams = new URLSearchParams({
+    sections: query.value.sections.join(','),
+  })
+  if (query.value.username) {
+    canonicalParams.set('username', query.value.username)
+  }
+  if (query.value.sections.includes('skills')) {
+    canonicalParams.set(
+      'skills',
+      resolvedSkills.skills.map((skill) => skill.id).join(','),
+    )
+    if (!query.value.labels) {
+      canonicalParams.set('labels', 'false')
+    }
+  }
+  if (query.value.theme !== DEFAULT_THEME_NAME) {
+    canonicalParams.set('theme', query.value.theme)
+  }
+
+  const effects: string[] = []
+  if (query.value.effects.card !== 'none') {
+    effects.push(`card:${query.value.effects.card}`)
+  }
+  if (query.value.effects.avatar !== 'none' && query.value.sections.includes('profile')) {
+    effects.push(`avatar:${query.value.effects.avatar}`)
+  }
+  for (const section of query.value.sections) {
+    const effect = query.value.effects.sections[section]
+    if (effect && effect !== 'none') {
+      effects.push(`${section}:${effect}`)
+    }
+  }
+  if (effects.length > 0) {
+    canonicalParams.set('effects', effects.join(','))
+  }
+
+  const canonicalQuery = canonicalParams
+    .toString()
+    .replaceAll('%2C', ',')
+    .replaceAll('%3A', ':')
+  if (requestUrl.search.slice(1) !== canonicalQuery) {
+    return context.redirect(`${requestUrl.pathname}?${canonicalQuery}`, 307)
+  }
+
+  let profile: ProfileCardData | undefined
+  if (query.value.username) {
+    try {
+      profile = await fetchGitHubProfile(query.value.username, {
+        token: process.env.GITHUB_TOKEN,
+        includeAvatar: query.value.sections.includes('profile'),
+      })
+    } catch (error) {
+      const serviceError =
+        error instanceof GitHubServiceError
+          ? error
+          : new GitHubServiceError('upstream_error')
+      return svgErrorResponse({
+        code: serviceError.code,
+        title: 'Card unavailable',
+        message: serviceError.message,
+        theme: query.value.theme,
+        width: CARD_WIDTH,
+        height: 120,
+        status: 200,
+      })
+    }
+  }
+
+  const sections: CardSection[] = query.value.sections.map((name) => {
+    switch (name) {
+      case 'profile':
+        return createProfileSection(profile!)
+      case 'stats':
+        return createStatsSection(profile!)
+      case 'skills':
+        return createSkillsSection(resolvedSkills.skills, {
+          labels: query.value.labels,
+        })
+    }
+  })
+
+  return svgResponse(
+    renderCard({
+      theme: query.value.theme,
+      sections,
+      effects: query.value.effects,
+    }),
+  )
+})

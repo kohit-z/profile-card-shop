@@ -100,6 +100,7 @@ export interface GitHubProfile {
 export interface FetchGitHubProfileOptions {
   readonly token?: string
   readonly timeoutMs?: number
+  readonly includeAvatar?: boolean
 }
 
 interface ProfilePage {
@@ -433,6 +434,7 @@ async function fetchGitHubProfileWithinDeadline(
   username: string,
   token: string,
   signal: AbortSignal,
+  includeAvatar: boolean,
 ): Promise<GitHubProfile> {
   const seenCursors = new Set<string>()
   let after: string | null = null
@@ -472,7 +474,9 @@ async function fetchGitHubProfileWithinDeadline(
     login: firstPage.login,
     name: firstPage.name,
     bio: firstPage.bio,
-    avatarDataUrl: await fetchAvatarDataUrl(firstPage.avatarUrl, signal),
+    avatarDataUrl: includeAvatar
+      ? await fetchAvatarDataUrl(firstPage.avatarUrl, signal)
+      : '',
     followers: firstPage.followers,
     repositories: firstPage.repositories,
     stars,
@@ -505,6 +509,7 @@ export async function fetchGitHubProfile(
         username,
         token,
         controller.signal,
+        options.includeAvatar ?? true,
       ),
       timeout,
     ])
