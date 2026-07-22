@@ -120,7 +120,23 @@ describe('renderCard', () => {
     })
 
     expect(svg).toContain('data-card-effect="none"')
+    expect(svg).toContain('data-background-effect="none"')
     expect(svg).not.toMatch(/<animate[ >]|<animateTransform|<animateMotion/)
+  })
+
+  it('renders a background effect behind sections and a card effect above them', () => {
+    const svg = renderCard({
+      sections: [createSkillsSection([SKILL_CATALOG.typescript])],
+      effects: { background: 'aurora', card: 'shimmer' },
+    })
+
+    const background = svg.indexOf('data-effect-layer="background"')
+    const section = svg.indexOf('data-section="skills"')
+    const cardOverlay = svg.indexOf('data-effect-layer="card"')
+
+    expect(background).toBeGreaterThan(-1)
+    expect(background).toBeLessThan(section)
+    expect(section).toBeLessThan(cardOverlay)
   })
 
   it('rejects duplicate section identifiers', () => {

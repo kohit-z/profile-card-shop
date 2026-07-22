@@ -1,7 +1,9 @@
 export { renderAvatarEffect } from './avatar.js'
+export { renderBackgroundEffect } from './background.js'
 export { renderCardEffect } from './card.js'
 export {
   AVATAR_EFFECT_NAMES,
+  BACKGROUND_EFFECT_NAMES,
   CARD_EFFECT_NAMES,
   DEFAULT_EFFECT_NAME,
   EFFECT_CATALOG,
@@ -10,11 +12,13 @@ export {
   effectSupportsTarget,
   getEffectMeta,
   resolveAvatarEffectName,
+  resolveBackgroundEffectName,
   resolveCardEffectName,
   resolveEffectName,
   resolveEffectNameForTarget,
   resolveSectionEffectName,
   type AvatarEffectName,
+  type BackgroundEffectName,
   type CardEffectName,
   type EffectName,
   type EffectNameForTarget,

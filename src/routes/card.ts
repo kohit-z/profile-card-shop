@@ -1,5 +1,10 @@
 import { Hono } from 'hono'
 
+import {
+  CONTACT_CATALOG,
+  DONATE_CATALOG,
+  resolveCardLinks,
+} from '../data/links.js'
 import { resolveSkills } from '../data/skills.js'
 import { parseCardQuery } from '../lib/query.js'
 import { svgErrorResponse, svgResponse, truncateText } from '../lib/svg.js'
@@ -15,6 +20,10 @@ import {
   type ProfileCardData,
 } from '../widgets/sections/profile.js'
 import { createSkillsSection } from '../widgets/sections/skills.js'
+import {
+  createContactSection,
+  createDonateSection,
+} from '../widgets/sections/links.js'
 
 export const cardRoutes = new Hono()
 
@@ -45,6 +54,30 @@ cardRoutes.get('/card', async (context) => {
       status: 200,
     })
   }
+  const resolvedContact = resolveCardLinks(query.value.contact, CONTACT_CATALOG)
+  if (resolvedContact.unknown) {
+    return svgErrorResponse({
+      code: 'contact_unknown',
+      title: 'Invalid card request',
+      message: `Unknown contact platform: ${truncateText(resolvedContact.unknown, 32)}.`,
+      theme: query.value.theme,
+      width: CARD_WIDTH,
+      height: 120,
+      status: 200,
+    })
+  }
+  const resolvedDonate = resolveCardLinks(query.value.donate, DONATE_CATALOG)
+  if (resolvedDonate.unknown) {
+    return svgErrorResponse({
+      code: 'donate_unknown',
+      title: 'Invalid card request',
+      message: `Unknown donation platform: ${truncateText(resolvedDonate.unknown, 32)}.`,
+      theme: query.value.theme,
+      width: CARD_WIDTH,
+      height: 120,
+      status: 200,
+    })
+  }
 
   const canonicalParams = new URLSearchParams({
     sections: query.value.sections.join(','),
@@ -61,11 +94,26 @@ cardRoutes.get('/card', async (context) => {
       canonicalParams.set('labels', 'false')
     }
   }
+  if (query.value.sections.includes('contact')) {
+    canonicalParams.set(
+      'contact',
+      resolvedContact.links.map((link) => `${link.id}:${link.value}`).join(','),
+    )
+  }
+  if (query.value.sections.includes('donate')) {
+    canonicalParams.set(
+      'donate',
+      resolvedDonate.links.map((link) => `${link.id}:${link.value}`).join(','),
+    )
+  }
   if (query.value.theme !== DEFAULT_THEME_NAME) {
     canonicalParams.set('theme', query.value.theme)
   }
 
   const effects: string[] = []
+  if (query.value.effects.background !== 'none') {
+    effects.push(`background:${query.value.effects.background}`)
+  }
   if (query.value.effects.card !== 'none') {
     effects.push(`card:${query.value.effects.card}`)
   }
@@ -124,6 +172,10 @@ cardRoutes.get('/card', async (context) => {
         return createSkillsSection(resolvedSkills.skills, {
           labels: query.value.labels,
         })
+      case 'contact':
+        return createContactSection(resolvedContact.links)
+      case 'donate':
+        return createDonateSection(resolvedDonate.links)
     }
   })
 

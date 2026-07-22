@@ -2,12 +2,14 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import {
   AVATAR_EFFECT_NAMES,
+  BACKGROUND_EFFECT_NAMES,
   CARD_EFFECT_NAMES,
   EFFECT_CATALOG,
   EFFECT_NAMES,
   SECTION_EFFECT_NAMES,
   getEffectMeta,
   resolveAvatarEffectName,
+  resolveBackgroundEffectName,
   resolveCardEffectName,
   resolveSectionEffectName,
   type EffectMeta,
@@ -32,12 +34,14 @@ describe('effect registry', () => {
   it('organizes every effect under one rendering target', () => {
     const targeted = [
       ...AVATAR_EFFECT_NAMES,
+      ...BACKGROUND_EFFECT_NAMES,
       ...CARD_EFFECT_NAMES,
       ...SECTION_EFFECT_NAMES,
     ]
 
     expect(new Set(targeted)).toEqual(new Set(EFFECT_NAMES))
     expect(EFFECT_CATALOG.orbit.target).toBe('avatar')
+    expect(EFFECT_CATALOG.aurora.targets).toContain('background')
     expect(EFFECT_CATALOG.shimmer.target).toBe('card')
     expect(EFFECT_CATALOG.grid.target).toBe('section')
   })
@@ -45,6 +49,8 @@ describe('effect registry', () => {
   it('resolves names only inside the requested target', () => {
     expect(resolveAvatarEffectName(' ORBIT ')).toBe('orbit')
     expect(resolveAvatarEffectName('shimmer')).toBe('none')
+    expect(resolveBackgroundEffectName('aurora')).toBe('aurora')
+    expect(resolveBackgroundEffectName('shimmer')).toBe('none')
     expect(resolveCardEffectName('shimmer')).toBe('shimmer')
     expect(resolveCardEffectName('orbit')).toBe('none')
     expect(resolveSectionEffectName('grid')).toBe('grid')
