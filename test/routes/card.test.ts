@@ -68,6 +68,22 @@ describe('GET /api/card', () => {
     expect(svg).toContain('data-section="skills"')
     expect(svg).toContain('data-section-effect="grid"')
     expect(svg).toContain('data-skill="typescript"')
+    expect(svg).toContain('data-layout="paired"')
+    expect(svg).toContain('width="842" height="374"')
+  })
+
+  it('uses a self-contained profile and full-bleed stats when they are not adjacent', async () => {
+    mockProfile()
+
+    const response = await app.request(
+      '/api/card?sections=profile,skills,stats&username=octocat&skills=typescript',
+    )
+    const svg = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(svg).toContain('data-layout="full"')
+    expect(svg).toContain('width="842" height="478"')
+    expect(svg).not.toContain('data-layout="paired"')
   })
 
   it('renders skills without fetching GitHub when no profile data is needed', async () => {

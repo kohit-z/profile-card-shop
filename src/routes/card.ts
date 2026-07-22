@@ -180,12 +180,16 @@ cardRoutes.get('/card', async (context) => {
     }
   }
 
-  const sections: CardSection[] = query.value.sections.map((name) => {
+  const sections: CardSection[] = query.value.sections.map((name, index, list) => {
     switch (name) {
       case 'profile':
-        return createProfileSection(profile!)
+        return createProfileSection(profile!, {
+          pairWithStats: list[index + 1] === 'stats',
+        })
       case 'stats':
-        return createStatsSection(profile!)
+        return createStatsSection(profile!, {
+          besideAvatar: list[index - 1] === 'profile',
+        })
       case 'skills':
         return createSkillsSection(resolvedSkills.skills, {
           labels: query.value.labels,

@@ -3,9 +3,9 @@ import { escapeXml, truncateText } from '../../lib/svg.js'
 import { defineCardSection, type CardSection } from '../card.js'
 
 const CARD_PADDING = 18
-const TITLE_HEIGHT = 62
+const TITLE_HEIGHT = 48
 const CELL_GAP = 12
-const CELL_HEIGHT = 68
+const CELL_HEIGHT = 64
 const ICON_SIZE = 30
 const COLUMNS = 2
 
@@ -45,14 +45,14 @@ function createLinksSection(
   <g transform="translate(${iconX} ${iconY}) scale(${ICON_SIZE / 24})" color="${theme.colors.accent}">
     <path d="${escapeXml(link.icon.path)}" fill="currentColor" />
   </g>
-  <text x="${textX}" y="${y + 27}" font-family="${fontFamily}" font-size="13" font-weight="700" fill="${theme.colors.foreground}">${escapeXml(link.label)}</text>
-  <text x="${textX}" y="${y + 48}" font-family="${fontFamily}" font-size="12" fill="${theme.colors.muted}">${escapeXml(truncateText(link.value, 36))}</text>
+  <text x="${textX}" y="${y + 25}" font-family="${fontFamily}" font-size="13" font-weight="700" fill="${theme.colors.foreground}">${escapeXml(link.label)}</text>
+  <text x="${textX}" y="${y + 45}" font-family="${fontFamily}" font-size="12" fill="${theme.colors.muted}">${escapeXml(truncateText(link.value, 36))}</text>
 </g>`
         })
         .join('\n')
 
       return `<g data-columns="${COLUMNS}" data-rows="${rows}">
-  <text x="${CARD_PADDING}" y="${frame.y + 38}" font-family="${fontFamily}" font-size="${theme.typography.titleSize}" font-weight="700" fill="${theme.colors.foreground}">${title}</text>
+  <text x="${CARD_PADDING}" y="${frame.y + 32}" font-family="${fontFamily}" font-size="${theme.typography.titleSize}" font-weight="700" fill="${theme.colors.foreground}">${title}</text>
 ${groups}
 </g>`
     },

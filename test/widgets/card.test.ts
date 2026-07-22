@@ -9,7 +9,9 @@ import {
 import {
   createProfileSection,
   createStatsSection,
+  LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT,
   PROFILE_SECTION_HEIGHT,
+  STATS_SECTION_HEIGHT,
 } from '../../src/widgets/sections/profile'
 import { createSkillsSection } from '../../src/widgets/sections/skills'
 
@@ -77,6 +79,31 @@ describe('renderCard', () => {
     )
   })
 
+  it('pairs profile+stats into the compact overlapping composition', () => {
+    const profileSection = createProfileSection(profile, { pairWithStats: true })
+    const statsSection = createStatsSection(profile, { besideAvatar: true })
+    const svg = renderCard({
+      sections: [profileSection, statsSection],
+    })
+
+    expect(profileSection.height).toBe(LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT)
+    expect(svg).toContain(
+      `height="${LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT + STATS_SECTION_HEIGHT}"`,
+    )
+    expect(svg).toContain('data-layout="paired"')
+    expect(svg).toContain('<rect x="184" y="142" width="144" height="72"')
+  })
+
+  it('uses a full-bleed stats row when stats are not under a profile', () => {
+    const svg = renderCard({
+      sections: [createStatsSection(profile)],
+    })
+
+    expect(svg).toContain('data-layout="full"')
+    expect(svg).toContain('<rect x="18" y="10" width="192.5" height="72"')
+    expect(svg).not.toContain('data-layout="paired"')
+  })
+
   it('composes profile, stats, skills, and custom sections in order', () => {
     const custom = defineCardSection({
       id: 'custom',
@@ -89,8 +116,8 @@ describe('renderCard', () => {
     const svg = renderCard({
       theme: 'dark',
       sections: [
-        createProfileSection(profile),
-        createStatsSection(profile),
+        createProfileSection(profile, { pairWithStats: true }),
+        createStatsSection(profile, { besideAvatar: true }),
         createSkillsSection(
           [SKILL_CATALOG.typescript, SKILL_CATALOG.react],
           { labels: true },
@@ -109,6 +136,7 @@ describe('renderCard', () => {
     expect(svg).toContain('data-avatar-effect="orbit"')
     expect(svg).toContain('data-section-effect="grid"')
     expect(svg).toContain('data-custom="true"')
+    expect(svg).toContain('data-layout="paired"')
     expect(svg.indexOf('data-section="profile"')).toBeLessThan(
       svg.indexOf('data-section="skills"'),
     )
