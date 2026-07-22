@@ -42,7 +42,7 @@ export function renderProfileCard(
     theme: themeName,
     sections: [
       createLegacyOverlappingProfileSection(profile),
-      createStatsSection(profile),
+      createStatsSection(profile, { besideAvatar: true }),
     ],
     effects: legacyEffectSelection(effect),
     title: `${profile.name?.trim() || profile.login} (@${profile.login})`,

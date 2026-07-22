@@ -99,6 +99,7 @@ export function renderGalleryPage(origin: string): string {
       <div class="field"><span class="label">Sections</span><div class="chips">${sectionButtons}</div></div>
       <div class="field"><label for="username">GitHub username</label><input id="username" value="octocat" autocomplete="off" spellcheck="false" /></div>
       <div class="field"><span class="label">Skills</span><div class="chips">${skillButtons}</div></div>
+      <div class="field"><span class="label">Skill labels</span><div class="chips"><button type="button" class="chip on" data-labels="true" aria-pressed="true">Show</button><button type="button" class="chip" data-labels="false" aria-pressed="false">Hide</button></div></div>
       <div class="field"><label for="contact">Contact options</label><input id="contact" value="email:hello@example.com,github:octocat" autocomplete="off" spellcheck="false" /><p class="note">Use comma-separated platform:value pairs.</p></div>
       <div class="field"><label for="donate">Donate options</label><input id="donate" value="github-sponsors:octocat,kofi:octocat" autocomplete="off" spellcheck="false" /><p class="note">Use comma-separated platform:value pairs.</p></div>
       <div class="field"><span class="label">Theme</span><div class="chips">${themeButtons}</div></div>
@@ -130,6 +131,7 @@ export function renderGalleryPage(origin: string): string {
     contact: "email:hello@example.com,github:octocat",
     donate: "github-sponsors:octocat,kofi:octocat",
     theme: "default",
+    labels: true,
     effects: { background: "none", card: "none", avatar: "pulse", stats: "none", skills: "none", contact: "none", donate: "none" }
   };
   const image = document.getElementById("card-img");
@@ -144,6 +146,7 @@ export function renderGalleryPage(origin: string): string {
     if (sections.includes("skills")) {
       const skills = [...state.skills];
       params.set("skills", (skills.length ? skills : ["typescript"]).join(","));
+      if (!state.labels) params.set("labels", "false");
     }
     if (sections.includes("contact")) params.set("contact", state.contact || "email:hello@example.com");
     if (sections.includes("donate")) params.set("donate", state.donate || "github-sponsors:octocat");
@@ -206,6 +209,11 @@ export function renderGalleryPage(origin: string): string {
   document.querySelectorAll("[data-theme]").forEach((button) => button.addEventListener("click", () => {
     state.theme = button.dataset.theme;
     exclusive(button, "[data-theme]");
+    refresh();
+  }));
+  document.querySelectorAll("[data-labels]").forEach((button) => button.addEventListener("click", () => {
+    state.labels = button.dataset.labels === "true";
+    exclusive(button, "[data-labels]");
     refresh();
   }));
   document.querySelectorAll("[data-effect-scope]").forEach((button) => button.addEventListener("click", () => {

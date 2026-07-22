@@ -5,6 +5,13 @@ export const PROFILE_SECTION_HEIGHT = 236
 export const LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT = 132
 export const STATS_SECTION_HEIGHT = 104
 
+const STATS_PADDING = 18
+const STATS_GAP = 12
+const PAIRED_STATS_X = 184
+const PAIRED_STATS_STEP = 156
+const PAIRED_STATS_WIDTH = 144
+const STAT_TILE_HEIGHT = 72
+
 export interface ProfileCardData {
   readonly login: string
   readonly name: string | null
@@ -14,6 +21,22 @@ export interface ProfileCardData {
   readonly repositories: number
   readonly stars: number
   readonly contributions: number
+}
+
+export interface ProfileSectionOptions {
+  /**
+   * Compact height that lets a following stats section nest beside the avatar
+   * (the classic 842×236 profile composition).
+   */
+  readonly pairWithStats?: boolean
+}
+
+export interface StatsSectionOptions {
+  /**
+   * Keep the legacy indent so tiles sit beside the avatar. When false, tiles
+   * span the full card width.
+   */
+  readonly besideAvatar?: boolean
 }
 
 const ICONS = {
@@ -95,8 +118,16 @@ function createProfileSectionWithHeight(
   })
 }
 
-export function createProfileSection(profile: ProfileCardData): CardSection {
-  return createProfileSectionWithHeight(profile, PROFILE_SECTION_HEIGHT)
+export function createProfileSection(
+  profile: ProfileCardData,
+  options: ProfileSectionOptions = {},
+): CardSection {
+  return createProfileSectionWithHeight(
+    profile,
+    options.pairWithStats
+      ? LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT
+      : PROFILE_SECTION_HEIGHT,
+  )
 }
 
 /**
@@ -106,13 +137,14 @@ export function createProfileSection(profile: ProfileCardData): CardSection {
 export function createLegacyOverlappingProfileSection(
   profile: ProfileCardData,
 ): CardSection {
-  return createProfileSectionWithHeight(
-    profile,
-    LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT,
-  )
+  return createProfileSection(profile, { pairWithStats: true })
 }
 
-export function createStatsSection(profile: ProfileCardData): CardSection {
+export function createStatsSection(
+  profile: ProfileCardData,
+  options: StatsSectionOptions = {},
+): CardSection {
+  const besideAvatar = options.besideAvatar ?? false
   const values: Record<StatKey, number> = {
     followers: profile.followers,
     repositories: profile.repositories,
@@ -131,18 +163,28 @@ export function createStatsSection(profile: ProfileCardData): CardSection {
     height: STATS_SECTION_HEIGHT,
     title: 'GitHub statistics',
     description: summary,
-    render: ({ frame, theme, fontFamily }) =>
-      STATS.map((stat, index) => {
-        const x = 184 + index * 156
-        const y = frame.y + 10
+    render: ({ frame, theme, fontFamily }) => {
+      const y = frame.y + 10
+      const fullWidth =
+        (frame.width -
+          STATS_PADDING * 2 -
+          STATS_GAP * (STATS.length - 1)) /
+        STATS.length
+
+      return STATS.map((stat, index) => {
+        const width = besideAvatar ? PAIRED_STATS_WIDTH : fullWidth
+        const x = besideAvatar
+          ? PAIRED_STATS_X + index * PAIRED_STATS_STEP
+          : STATS_PADDING + index * (fullWidth + STATS_GAP)
         const value = formattedValues[stat.key]
-        return `<g data-stat="${stat.key}" aria-label="${escapeXml(`${stat.label}: ${value}`)}">
-  <rect x="${x}" y="${y}" width="144" height="72" rx="12" fill="${theme.colors.background}" fill-opacity="0.78" stroke="${theme.colors.border}" />
+        return `<g data-stat="${stat.key}" data-layout="${besideAvatar ? 'paired' : 'full'}" aria-label="${escapeXml(`${stat.label}: ${value}`)}">
+  <rect x="${x}" y="${y}" width="${width}" height="${STAT_TILE_HEIGHT}" rx="12" fill="${theme.colors.background}" fill-opacity="0.78" stroke="${theme.colors.border}" />
   <circle cx="${x + 28}" cy="${y + 36}" r="16" fill="${theme.colors.accent}" fill-opacity="0.14" />
   ${icon(stat.icon, x + 20, y + 28, 16, theme.colors.accent)}
   <text x="${x + 52}" y="${y + 30}" font-family="${fontFamily}" font-size="18" font-weight="700" fill="${theme.colors.foreground}">${escapeXml(value)}</text>
   <text x="${x + 52}" y="${y + 50}" font-family="${fontFamily}" font-size="11" fill="${theme.colors.muted}">${escapeXml(stat.label)}</text>
 </g>`
-      }).join('\n'),
+      }).join('\n')
+    },
   })
 }
