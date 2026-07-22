@@ -1,4 +1,4 @@
-import { imageDataUrl } from '../lib/svg'
+import { imageDataUrl } from '../lib/svg.js'
 
 const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql'
 const DEFAULT_TIMEOUT_MS = 5_000

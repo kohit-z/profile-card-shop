@@ -1,14 +1,14 @@
 import { Hono } from 'hono'
 
-import { resolveSkills } from '../data/skills'
-import { parseSkillsQuery } from '../lib/query'
+import { resolveSkills } from '../data/skills.js'
+import { parseSkillsQuery } from '../lib/query.js'
 import {
   svgErrorResponse,
   svgResponse,
   truncateText,
-} from '../lib/svg'
-import { resolveThemeName } from '../themes'
-import { renderSkillsCard } from '../widgets/skills'
+} from '../lib/svg.js'
+import { resolveThemeName } from '../themes/index.js'
+import { renderSkillsCard } from '../widgets/skills.js'
 
 export const skillsRoutes = new Hono()
 

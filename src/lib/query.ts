@@ -1,4 +1,4 @@
-import { resolveThemeName, type ThemeName } from '../themes'
+import { resolveThemeName, type ThemeName } from '../themes/index.js'
 
 export const MAX_USERNAME_LENGTH = 39
 export const MAX_SKILLS = 20

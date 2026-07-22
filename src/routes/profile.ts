@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
 
-import { parseProfileQuery } from '../lib/query'
-import { svgErrorResponse, svgResponse } from '../lib/svg'
+import { parseProfileQuery } from '../lib/query.js'
+import { svgErrorResponse, svgResponse } from '../lib/svg.js'
 import {
   GitHubServiceError,
   fetchGitHubProfile,
-} from '../services/github'
-import { DEFAULT_THEME_NAME } from '../themes'
-import { renderProfileCard } from '../widgets/profile'
+} from '../services/github.js'
+import { DEFAULT_THEME_NAME } from '../themes/index.js'
+import { renderProfileCard } from '../widgets/profile.js'
 
 export const profileRoutes = new Hono()
 

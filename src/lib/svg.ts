@@ -1,4 +1,4 @@
-import { getTheme, type ThemeName } from '../themes'
+import { getTheme, type ThemeName } from '../themes/index.js'
 
 export const SVG_CONTENT_TYPE = 'image/svg+xml; charset=UTF-8'
 export const SVG_CACHE_CONTROL =

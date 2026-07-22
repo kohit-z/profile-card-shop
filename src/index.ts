@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 
-import { homeRoutes } from './routes/home'
-import { profileRoutes } from './routes/profile'
-import { skillsRoutes } from './routes/skills'
+import { homeRoutes } from './routes/home.js'
+import { profileRoutes } from './routes/profile.js'
+import { skillsRoutes } from './routes/skills.js'
 
 const app = new Hono()
 

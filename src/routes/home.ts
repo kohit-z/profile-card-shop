@@ -1,18 +1,36 @@
 import { Hono } from 'hono'
 
-import { SKILL_IDS } from '../data/skills'
-import { THEME_NAMES } from '../themes'
+import { SKILL_IDS } from '../data/skills.js'
+import { THEME_NAMES } from '../themes/index.js'
+import { renderGalleryPage } from '../ui/gallery.js'
 
 export const homeRoutes = new Hono()
 
-homeRoutes.get('/', (context) =>
+homeRoutes.get('/', (context) => {
+  const url = new URL(context.req.url)
+  const origin = `${url.protocol}//${url.host}`
+
+  return context.html(renderGalleryPage(origin))
+})
+
+homeRoutes.get('/meta', (context) =>
   context.json({
     name: 'GitHub Deco',
     description: 'Embeddable SVG cards for GitHub profiles and skills.',
     routes: {
+      gallery: {
+        method: 'GET',
+        path: '/',
+        status: 'available',
+      },
       health: {
         method: 'GET',
         path: '/health',
+        status: 'available',
+      },
+      meta: {
+        method: 'GET',
+        path: '/meta',
         status: 'available',
       },
       profile: {

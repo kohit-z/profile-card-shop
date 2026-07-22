@@ -61,7 +61,7 @@ afterEach(() => {
 
 describe('GET /api/profile', () => {
   it('is advertised as available by the service index', async () => {
-    const response = await app.request('/')
+    const response = await app.request('/meta')
     const body = await response.json()
 
     expect(body.routes.profile).toMatchObject({

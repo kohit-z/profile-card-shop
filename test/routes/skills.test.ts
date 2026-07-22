@@ -38,7 +38,7 @@ async function requestSkills(query: string): Promise<{
 
 describe('GET /api/skills', () => {
   it('is advertised as available with its supported identifiers', async () => {
-    const response = await app.request('/')
+    const response = await app.request('/meta')
     const body = await response.json()
 
     expect(body.routes.skills).toMatchObject({

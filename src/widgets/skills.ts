@@ -1,6 +1,6 @@
-import type { SkillDefinition } from '../data/skills'
-import { escapeXml } from '../lib/svg'
-import { getTheme, type ThemeName } from '../themes'
+import type { SkillDefinition } from '../data/skills.js'
+import { escapeXml } from '../lib/svg.js'
+import { getTheme, type ThemeName } from '../themes/index.js'
 
 const CARD_PADDING = 18
 const CARD_TOP = 62

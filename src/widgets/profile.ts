@@ -1,5 +1,5 @@
-import { escapeXml, truncateText } from '../lib/svg'
-import { getTheme, type ThemeName } from '../themes'
+import { escapeXml, truncateText } from '../lib/svg.js'
+import { getTheme, type ThemeName } from '../themes/index.js'
 
 export const PROFILE_CARD_WIDTH = 842
 export const PROFILE_CARD_HEIGHT = 220

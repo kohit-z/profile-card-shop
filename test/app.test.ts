@@ -7,8 +7,20 @@ afterEach(() => {
 })
 
 describe('application smoke tests', () => {
-  it('returns service metadata from the root endpoint', async () => {
-    const response = await app.request('/')
+  it('returns the interactive gallery from the root endpoint', async () => {
+    const response = await app.request('https://example.com/')
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/html')
+    expect(body).toContain('GitHub Deco')
+    expect(body).toContain('id="playground"')
+    expect(body).toContain('/api/profile')
+    expect(body).toContain('/api/skills')
+  })
+
+  it('returns service metadata from the meta endpoint', async () => {
+    const response = await app.request('/meta')
     const body = await response.json()
 
     expect(response.status).toBe(200)
@@ -17,9 +29,19 @@ describe('application smoke tests', () => {
       name: 'GitHub Deco',
       description: 'Embeddable SVG cards for GitHub profiles and skills.',
       routes: {
+        gallery: {
+          method: 'GET',
+          path: '/',
+          status: 'available',
+        },
         health: {
           method: 'GET',
           path: '/health',
+          status: 'available',
+        },
+        meta: {
+          method: 'GET',
+          path: '/meta',
           status: 'available',
         },
         profile: {
