@@ -27,6 +27,22 @@ import {
 
 export const cardRoutes = new Hono()
 
+function isSameSearchParams(
+  left: URLSearchParams,
+  right: URLSearchParams,
+): boolean {
+  const leftEntries = [...left.entries()]
+  const rightEntries = [...right.entries()]
+  if (leftEntries.length !== rightEntries.length) {
+    return false
+  }
+
+  return leftEntries.every(
+    ([key, value], index) =>
+      key === rightEntries[index]?.[0] && value === rightEntries[index]?.[1],
+  )
+}
+
 cardRoutes.get('/card', async (context) => {
   const requestUrl = new URL(context.req.url)
   const query = parseCardQuery(requestUrl.searchParams)
@@ -130,11 +146,13 @@ cardRoutes.get('/card', async (context) => {
     canonicalParams.set('effects', effects.join(','))
   }
 
-  const canonicalQuery = canonicalParams
-    .toString()
-    .replaceAll('%2C', ',')
-    .replaceAll('%3A', ':')
-  if (requestUrl.search.slice(1) !== canonicalQuery) {
+  // Compare decoded params so Vercel’s percent-encoded req.url cannot 307-loop
+  // against the readable unencoded Location form.
+  if (!isSameSearchParams(requestUrl.searchParams, canonicalParams)) {
+    const canonicalQuery = canonicalParams
+      .toString()
+      .replaceAll('%2C', ',')
+      .replaceAll('%3A', ':')
     return context.redirect(`${requestUrl.pathname}?${canonicalQuery}`, 307)
   }
 

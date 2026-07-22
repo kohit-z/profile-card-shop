@@ -131,6 +131,17 @@ describe('GET /api/card', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('does not redirect when commas and colons are already percent-encoded', async () => {
+    mockProfile()
+
+    const response = await app.request(
+      '/api/card?sections=profile%2Cstats%2Cskills&username=octocat&skills=typescript%2Creact&effects=avatar%3Apulse',
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+  })
+
   it('returns a safe no-store error when GitHub access is not configured', async () => {
     delete process.env.GITHUB_TOKEN
     const fetchMock = vi.fn<typeof fetch>()
