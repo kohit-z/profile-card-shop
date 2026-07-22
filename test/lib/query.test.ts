@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+  MAX_SKILLS,
+  parseProfileQuery,
+  parseSkillsQuery,
+} from '../../src/lib/query'
+
+describe('parseProfileQuery', () => {
+  it('trims and normalizes a valid profile query', () => {
+    expect(
+      parseProfileQuery(
+        new URLSearchParams({ username: ' Octo-Cat ', theme: ' DARK ' }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        username: 'octo-cat',
+        theme: 'dark',
+      },
+    })
+  })
+
+  it.each([
+    ['', 'username_required'],
+    ['-leading', 'username_invalid'],
+    ['trailing-', 'username_invalid'],
+    ['double--dash', 'username_invalid'],
+    ['contains space', 'username_invalid'],
+    ['a'.repeat(40), 'username_invalid'],
+  ])('rejects invalid username %j', (username, code) => {
+    const result = parseProfileQuery(new URLSearchParams({ username }))
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe(code)
+    }
+  })
+
+  it('falls back to the default theme for an unknown theme', () => {
+    const result = parseProfileQuery(
+      new URLSearchParams({ username: 'octocat', theme: 'neon' }),
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { theme: 'default' },
+    })
+  })
+})
+
+describe('parseSkillsQuery', () => {
+  it('normalizes, removes duplicates, and parses labels', () => {
+    expect(
+      parseSkillsQuery(
+        new URLSearchParams({
+          skills: ' TypeScript, react,typescript,Node.js ',
+          theme: 'Sunset',
+          labels: 'false',
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        skills: ['typescript', 'react', 'node.js'],
+        theme: 'sunset',
+        labels: false,
+      },
+    })
+  })
+
+  it('requires at least one skill', () => {
+    const result = parseSkillsQuery(
+      new URLSearchParams({ skills: ' ,  , ' }),
+    )
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'skills_required' },
+    })
+  })
+
+  it('rejects invalid skill identifiers and label values', () => {
+    expect(
+      parseSkillsQuery(new URLSearchParams({ skills: '<script>' })),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'skill_invalid' },
+    })
+
+    expect(
+      parseSkillsQuery(
+        new URLSearchParams({ skills: 'git', labels: 'sometimes' }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'labels_invalid' },
+    })
+  })
+
+  it('accepts boolean aliases', () => {
+    expect(
+      parseSkillsQuery(new URLSearchParams({ skills: 'git', labels: '1' })),
+    ).toMatchObject({ ok: true, value: { labels: true } })
+    expect(
+      parseSkillsQuery(new URLSearchParams({ skills: 'git', labels: '0' })),
+    ).toMatchObject({ ok: true, value: { labels: false } })
+  })
+
+  it('enforces the bounded skill count', () => {
+    const skills = Array.from(
+      { length: MAX_SKILLS + 1 },
+      (_, index) => `skill-${index}`,
+    ).join(',')
+    const result = parseSkillsQuery(new URLSearchParams({ skills }))
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'skills_limit' },
+    })
+  })
+
+  it('rejects oversized raw query values before parsing', () => {
+    const result = parseSkillsQuery(
+      new URLSearchParams({ skills: `git,${'a'.repeat(1000)}` }),
+    )
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'skills_too_long' },
+    })
+  })
+})
