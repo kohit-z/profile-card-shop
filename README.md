@@ -60,7 +60,7 @@ Replace `YOUR_DEPLOYMENT_URL` with your deployment hostname.
 Profile card:
 
 ```md
-![GitHub profile](https://YOUR_DEPLOYMENT_URL/api/profile?username=octocat&theme=dark)
+![GitHub profile](https://YOUR_DEPLOYMENT_URL/api/profile?username=octocat&theme=dark&effect=orbit)
 ```
 
 Skills card:
@@ -98,13 +98,14 @@ Returns an SVG profile card.
 
 - `username` is required. It is trimmed, lowercased, and must be 1-39 characters using letters, numbers, and single hyphens. It cannot begin or end with a hyphen or contain consecutive hyphens.
 - `theme` is optional and defaults to `default`. An omitted or unsupported value also resolves to `default`.
+- `effect` is optional and defaults to `pulse`. An omitted or unsupported value also resolves to `pulse`.
 - The endpoint requires a configured `GITHUB_TOKEN`.
 - Requests are redirected to one canonical query form before GitHub is called. Repository star totals are paginated up to 1,000 public owned repositories; larger profiles receive a safe SVG error instead of a partial total.
 
 Example request:
 
 ```text
-/api/profile?username=octocat&theme=dark
+/api/profile?username=octocat&theme=dark&effect=orbit
 ```
 
 ### `GET /api/skills`
@@ -128,6 +129,40 @@ Example request:
 ## Themes
 
 Supported themes are `default`, `dark`, `ocean`, and `sunset`.
+
+## Profile effects
+
+Supported effect candidates:
+
+| Effect | Character |
+| --- | --- |
+| `none` | Static card with no motion |
+| `pulse` | Breathing accent ring around the avatar (default) |
+| `shimmer` | Diagonal light sweep across the card |
+| `orbit` | Accent dots orbiting the avatar |
+| `aurora` | Shifting multi-stop gradient atmosphere |
+| `spark` | Twinkling particles across the card |
+| `wave` | Soft undulating ribbon along the base |
+| `glow` | Warm radial glow blooming behind the avatar |
+| `beam` | Light beams racing around the card border |
+| `comet` | Comets streaking across the card |
+| `rain` | Accent streaks raining down behind the content |
+| `halo` | Counter-rotating dashed rings around the avatar |
+| `equalizer` | Bouncing equalizer bars beneath the avatar |
+| `float` | Avatar hovering gently over a drifting shadow |
+| `neon` | Flickering neon border glow |
+| `scan` | Retro scanline sweeping down the card |
+| `confetti` | Confetti pieces tumbling down the card |
+| `matrix` | Digital glyph columns streaming behind the profile |
+| `glitch` | Chromatic slices snapping sideways in short bursts |
+| `radar` | Rotating scanner sweep with pulsing target points |
+| `constellation` | Connected stars drifting and blinking behind the stats |
+| `ripple` | Expanding energy rings traveling across the card |
+| `spotlight` | Broad theatrical light cones sweeping across the profile |
+| `vortex` | Layered elliptical arcs spiraling around the avatar |
+| `grid` | Perspective grid surging with traveling energy pulses |
+
+Profile stats use icons for followers, repositories, stars, and contributions, plus a GitHub mark beside the username.
 
 ## Skill identifiers
 
@@ -173,9 +208,11 @@ src/index.ts          Hono application and route mounting
 src/routes/           Service, health, profile, and skills handlers
 src/services/         GitHub API integration
 src/widgets/          Profile and skills SVG renderers
+src/effects/          Profile card motion effect candidates
 src/themes/           Theme definitions and fallback behavior
 src/data/             Skill catalog and aliases
 src/lib/              Query validation and safe SVG helpers
+src/ui/               Interactive gallery page
 test/                 Unit, route, service, and app smoke tests
 ```
 

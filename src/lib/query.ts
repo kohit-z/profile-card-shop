@@ -1,3 +1,7 @@
+import {
+  resolveEffectName,
+  type EffectName,
+} from '../effects/index.js'
 import { resolveThemeName, type ThemeName } from '../themes/index.js'
 
 export const MAX_USERNAME_LENGTH = 39
@@ -20,6 +24,7 @@ export type QueryResult<T> =
 export interface ProfileQuery {
   readonly username: string
   readonly theme: ThemeName
+  readonly effect: EffectName
 }
 
 export interface SkillsQuery {
@@ -56,6 +61,7 @@ export function parseProfileQuery(
     value: {
       username,
       theme: resolveThemeName(params.get('theme')),
+      effect: resolveEffectName(params.get('effect')),
     },
   }
 }

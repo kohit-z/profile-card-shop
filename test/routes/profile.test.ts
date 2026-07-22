@@ -66,7 +66,7 @@ describe('GET /api/profile', () => {
 
     expect(body.routes.profile).toMatchObject({
       method: 'GET',
-      path: '/api/profile?username=<name>&theme=<theme>',
+      path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>',
       status: 'available',
     })
   })
@@ -88,8 +88,10 @@ describe('GET /api/profile', () => {
     )
     expect(response.headers.has('location')).toBe(false)
     expect(response.headers.has('x-github-deco-error')).toBe(false)
-    expect(svg).toContain('width="842" height="220"')
+    expect(svg).toContain('width="842" height="236"')
     expect(svg).toContain('role="img"')
+    expect(svg).toContain('data-effect="pulse"')
+    expect(svg).toContain('data-stat="followers"')
     expect(svg).toContain('Octo &lt;&amp; &quot;猫&quot;')
     expect(svg).toContain('Code &amp; &lt;cats&gt; 🙂')
     expect(svg).not.toContain('Octo <&')
@@ -104,6 +106,19 @@ describe('GET /api/profile', () => {
     expect(svg).toContain('>78<')
   })
 
+  it('renders a selected effect candidate in the SVG', async () => {
+    mockSuccessfulFetch()
+
+    const response = await app.request(
+      '/api/profile?username=octocat&effect=orbit',
+    )
+    const svg = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(svg).toContain('data-effect="orbit"')
+    expect(svg).toContain('animateTransform')
+  })
+
   it.each([
     [
       'uppercase username',
@@ -116,13 +131,18 @@ describe('GET /api/profile', () => {
       '/api/profile?username=octocat&theme=dark',
     ],
     [
+      'effect casing and order',
+      '/api/profile?effect=ORBIT&username=OctoCat&theme=ocean',
+      '/api/profile?username=octocat&theme=ocean&effect=orbit',
+    ],
+    [
       'unknown parameters',
       '/api/profile?username=octocat&utm_source=readme',
       '/api/profile?username=octocat',
     ],
     [
       'duplicate and explicit default parameters',
-      '/api/profile?username=octocat&username=other&theme=default&theme=dark',
+      '/api/profile?username=octocat&username=other&theme=default&theme=dark&effect=pulse',
       '/api/profile?username=octocat',
     ],
     [

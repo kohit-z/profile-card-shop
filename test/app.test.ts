@@ -46,7 +46,7 @@ describe('application smoke tests', () => {
         },
         profile: {
           method: 'GET',
-          path: '/api/profile?username=<name>&theme=<theme>',
+          path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>',
           status: 'available',
         },
         skills: {
@@ -56,6 +56,33 @@ describe('application smoke tests', () => {
         },
       },
       themes: ['default', 'dark', 'ocean', 'sunset'],
+      effects: [
+        'none',
+        'pulse',
+        'shimmer',
+        'orbit',
+        'aurora',
+        'spark',
+        'wave',
+        'glow',
+        'beam',
+        'comet',
+        'rain',
+        'halo',
+        'equalizer',
+        'float',
+        'neon',
+        'scan',
+        'confetti',
+        'matrix',
+        'glitch',
+        'radar',
+        'constellation',
+        'ripple',
+        'spotlight',
+        'vortex',
+        'grid',
+      ],
     })
     expect(body.skills).toContain('typescript')
     expect(body.skills).toContain('nodejs')

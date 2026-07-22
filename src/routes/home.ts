@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 
 import { SKILL_IDS } from '../data/skills.js'
+import { EFFECT_NAMES } from '../effects/index.js'
 import { THEME_NAMES } from '../themes/index.js'
 import { renderGalleryPage } from '../ui/gallery.js'
 
@@ -35,7 +36,7 @@ homeRoutes.get('/meta', (context) =>
       },
       profile: {
         method: 'GET',
-        path: '/api/profile?username=<name>&theme=<theme>',
+        path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>',
         status: 'available',
       },
       skills: {
@@ -45,6 +46,7 @@ homeRoutes.get('/meta', (context) =>
       },
     },
     themes: THEME_NAMES,
+    effects: EFFECT_NAMES,
     skills: SKILL_IDS,
   }),
 )

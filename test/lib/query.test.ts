@@ -17,7 +17,38 @@ describe('parseProfileQuery', () => {
       value: {
         username: 'octo-cat',
         theme: 'dark',
+        effect: 'pulse',
       },
+    })
+  })
+
+  it('accepts an explicit profile effect', () => {
+    expect(
+      parseProfileQuery(
+        new URLSearchParams({
+          username: 'octocat',
+          theme: 'ocean',
+          effect: ' Aurora ',
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        username: 'octocat',
+        theme: 'ocean',
+        effect: 'aurora',
+      },
+    })
+  })
+
+  it('falls back to the default effect for an unknown effect', () => {
+    const result = parseProfileQuery(
+      new URLSearchParams({ username: 'octocat', effect: 'disco' }),
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { effect: 'pulse' },
     })
   })
 

@@ -6,8 +6,13 @@ import {
   GitHubServiceError,
   fetchGitHubProfile,
 } from '../services/github.js'
+import { DEFAULT_EFFECT_NAME } from '../effects/index.js'
 import { DEFAULT_THEME_NAME } from '../themes/index.js'
-import { renderProfileCard } from '../widgets/profile.js'
+import {
+  PROFILE_CARD_HEIGHT,
+  PROFILE_CARD_WIDTH,
+  renderProfileCard,
+} from '../widgets/profile.js'
 
 export const profileRoutes = new Hono()
 
@@ -20,8 +25,8 @@ profileRoutes.get('/profile', async (context) => {
       code: query.error.code,
       title: 'Invalid profile request',
       message: query.error.message,
-      width: 842,
-      height: 220,
+      width: PROFILE_CARD_WIDTH,
+      height: PROFILE_CARD_HEIGHT,
       status: 200,
     })
   }
@@ -31,6 +36,9 @@ profileRoutes.get('/profile', async (context) => {
   })
   if (query.value.theme !== DEFAULT_THEME_NAME) {
     canonicalParams.set('theme', query.value.theme)
+  }
+  if (query.value.effect !== DEFAULT_EFFECT_NAME) {
+    canonicalParams.set('effect', query.value.effect)
   }
 
   const canonicalQuery = canonicalParams.toString()
@@ -46,7 +54,9 @@ profileRoutes.get('/profile', async (context) => {
       token: process.env.GITHUB_TOKEN,
     })
 
-    return svgResponse(renderProfileCard(profile, query.value.theme))
+    return svgResponse(
+      renderProfileCard(profile, query.value.theme, query.value.effect),
+    )
   } catch (error) {
     const serviceError =
       error instanceof GitHubServiceError
@@ -58,8 +68,8 @@ profileRoutes.get('/profile', async (context) => {
       title: 'Profile unavailable',
       message: serviceError.message,
       theme: query.value.theme,
-      width: 842,
-      height: 220,
+      width: PROFILE_CARD_WIDTH,
+      height: PROFILE_CARD_HEIGHT,
       status: 200,
     })
   }

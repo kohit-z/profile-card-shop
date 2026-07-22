@@ -1,4 +1,9 @@
 import { SKILL_IDS, SKILL_CATALOG } from '../data/skills.js'
+import {
+  DEFAULT_EFFECT_NAME,
+  EFFECT_CATALOG,
+  EFFECT_NAMES,
+} from '../effects/index.js'
 import { THEME_NAMES } from '../themes/index.js'
 
 const DEFAULT_USERNAME = 'octocat'
@@ -26,6 +31,12 @@ export function renderGalleryPage(origin: string): string {
     (theme, index) =>
       `<button type="button" class="theme-pill${index === 0 ? ' is-on' : ''}" data-theme="${escapeHtml(theme)}" aria-pressed="${index === 0}">${escapeHtml(theme)}</button>`,
   ).join('')
+
+  const effectOptions = EFFECT_NAMES.map((effect) => {
+    const meta = EFFECT_CATALOG[effect]
+    const selected = effect === DEFAULT_EFFECT_NAME
+    return `<button type="button" class="theme-pill${selected ? ' is-on' : ''}" data-effect="${escapeHtml(effect)}" title="${escapeHtml(meta.description)}" aria-pressed="${selected}">${escapeHtml(meta.label)}</button>`
+  }).join('')
 
   const skillCatalogJson = JSON.stringify(SKILL_IDS)
   const pageOrigin = origin.replace(/\/$/, '')
@@ -385,7 +396,7 @@ export function renderGalleryPage(origin: string): string {
         <div class="panel-head">
           <div>
             <h2>Profile card</h2>
-            <p>Live preview from <code>/api/profile</code></p>
+            <p>Icons for stats, plus live effect candidates from <code>/api/profile</code></p>
           </div>
         </div>
         <div class="controls">
@@ -399,9 +410,15 @@ export function renderGalleryPage(origin: string): string {
               ${themeOptions}
             </div>
           </div>
+          <div class="field">
+            <label>Effect</label>
+            <div class="theme-row" data-group="profile-effect" role="group" aria-label="Profile effect">
+              ${effectOptions}
+            </div>
+          </div>
         </div>
         <div class="preview" id="profile-preview" aria-live="polite">
-          <img id="profile-img" alt="Profile card preview" width="842" height="220" />
+          <img id="profile-img" alt="Profile card preview" width="842" height="236" />
         </div>
         <div class="embed">
           <div class="embed-bar">
@@ -471,6 +488,7 @@ export function renderGalleryPage(origin: string): string {
       const state = {
         username: ${JSON.stringify(DEFAULT_USERNAME)},
         profileTheme: "default",
+        profileEffect: ${JSON.stringify(DEFAULT_EFFECT_NAME)},
         skillsTheme: "ocean",
         labels: true,
         skills: new Set(${JSON.stringify([...DEFAULT_SKILLS])}),
@@ -489,6 +507,9 @@ export function renderGalleryPage(origin: string): string {
       function profileUrl() {
         const params = new URLSearchParams({ username: state.username || "octocat" });
         if (state.profileTheme !== "default") params.set("theme", state.profileTheme);
+        if (state.profileEffect !== ${JSON.stringify(DEFAULT_EFFECT_NAME)}) {
+          params.set("effect", state.profileEffect);
+        }
         return ORIGIN + "/api/profile?" + params.toString();
       }
 
@@ -541,6 +562,14 @@ export function renderGalleryPage(origin: string): string {
       document.querySelectorAll('[data-group="profile-theme"] .theme-pill').forEach((btn) => {
         btn.addEventListener("click", () => {
           state.profileTheme = btn.dataset.theme;
+          setActive(btn.parentElement, btn);
+          refreshProfile();
+        });
+      });
+
+      document.querySelectorAll('[data-group="profile-effect"] .theme-pill').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.profileEffect = btn.dataset.effect;
           setActive(btn.parentElement, btn);
           refreshProfile();
         });
