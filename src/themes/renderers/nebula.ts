@@ -25,6 +25,60 @@ const GAP = 12
 const FONT = "'Manrope', -apple-system, BlinkMacSystemFont, sans-serif"
 const BANNER_HEIGHT = 200
 const PROFILE_CONTENT_HEIGHT = BANNER_HEIGHT + 136
+const CARD_RADIUS = 24
+const PANEL_RADIUS = 14
+const TILE_RADIUS = 12
+
+function renderGlowFilters(prefix: string): string {
+  return `<filter id="${prefix}-card-glow" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="cardBlur" />
+      <feOffset dy="8" result="cardOffset" />
+      <feFlood flood-color="#05060a" flood-opacity="0.55" result="cardShadowColor" />
+      <feComposite in="cardShadowColor" in2="cardOffset" operator="in" result="cardShadow" />
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16" result="cardGlowBlur" />
+      <feFlood flood-color="#a855f7" flood-opacity="0.34" result="cardGlowColor" />
+      <feComposite in="cardGlowColor" in2="cardGlowBlur" operator="in" result="cardGlow" />
+      <feMerge>
+        <feMergeNode in="cardShadow" />
+        <feMergeNode in="cardGlow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="${prefix}-panel-glow" x="-18%" y="-28%" width="136%" height="164%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="panelBlur" />
+      <feOffset dy="4" result="panelOffset" />
+      <feFlood flood-color="#000000" flood-opacity="0.42" result="panelShadowColor" />
+      <feComposite in="panelShadowColor" in2="panelOffset" operator="in" result="panelShadow" />
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="panelGlowBlur" />
+      <feFlood flood-color="#8b5cf6" flood-opacity="0.22" result="panelGlowColor" />
+      <feComposite in="panelGlowColor" in2="panelGlowBlur" operator="in" result="panelGlow" />
+      <feMerge>
+        <feMergeNode in="panelShadow" />
+        <feMergeNode in="panelGlow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="${prefix}-divider-glow" x="-4%" y="-120%" width="108%" height="340%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.4" />
+    </filter>`
+}
+
+function renderNebulaPanel(options: {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly radius?: number
+  readonly fill?: string
+  readonly filterId: string
+  readonly glow?: boolean
+}): string {
+  const radius = options.radius ?? PANEL_RADIUS
+  const fill = options.fill ?? '#232428'
+  const filter =
+    options.glow === false ? '' : ` filter="url(#${options.filterId})"`
+  return `<rect x="${options.x}" y="${options.y}" width="${options.width}" height="${options.height}" rx="${radius}" fill="${fill}"${filter} />`
+}
 
 const STAT_ICONS = {
   followers:
@@ -179,7 +233,13 @@ function renderStats(payload: Payload<'stats'>, frame: EffectFrame): string {
       const x = PAD + index * (cellWidth + GAP)
       const y = frame.y + 18
       return `<g data-nebula-stat="${key}" data-stat="${key}" aria-label="${escapeXml(`${label}: ${formatCount(value)}`)}">
-  <rect x="${x}" y="${y}" width="${cellWidth}" height="90" rx="14" fill="#232428" stroke="#3a3c42" />
+  ${renderNebulaPanel({
+    x,
+    y,
+    width: cellWidth,
+    height: 90,
+    filterId: 'nebula-panel-glow',
+  })}
   <g data-nebula-stat-icon="${key}">
     <rect x="${x + 14}" y="${y + 27}" width="36" height="36" rx="10" fill="${STAT_COLORS[key]}" fill-opacity="0.28" />
     <g transform="translate(${x + 24} ${y + 37})" fill="${STAT_COLORS[key]}"><path d="${STAT_ICONS[key]}" /></g>
@@ -218,17 +278,28 @@ function renderSkills(
         ? `<text x="${iconX + iconSize + 9}" y="${y + 25}" font-family="${FONT}" font-size="12.5" font-weight="600" fill="#dbdee1">${escapeXml(truncateText(skill.label, 16))}</text>`
         : ''
       return `<g data-skill="${escapeXml(skill.id)}" data-category="${skill.category}" aria-label="${escapeXml(skill.label)}">
-  ${renderItemOutlineRect({
-    x,
-    y,
-    width: cellWidth,
-    height: 40,
-    fill: '#232428',
-    fillOpacity: 1,
-    borderColor: '#3a3c42',
-    outline,
-    radiusFallback: 10,
-  })}
+  ${
+    outline === 'none'
+      ? renderItemOutlineRect({
+          x,
+          y,
+          width: cellWidth,
+          height: 40,
+          fill: '#232428',
+          fillOpacity: 1,
+          borderColor: '#3a3c42',
+          outline,
+          radiusFallback: TILE_RADIUS,
+        })
+      : renderNebulaPanel({
+          x,
+          y,
+          width: cellWidth,
+          height: 40,
+          radius: TILE_RADIUS,
+          filterId: 'nebula-panel-glow',
+        })
+  }
   <g transform="translate(${iconX} ${iconY}) scale(${iconSize / 256})" data-icon="${escapeXml(iconName)}">${resolveSkillIconBody(skill, 'nebula')}</g>
   ${label}
 </g>`
@@ -256,7 +327,13 @@ function renderProjects(payload: Payload<'projects'>, frame: EffectFrame): strin
             const language = project.primaryLanguage?.name ?? 'Unknown'
             const color = project.primaryLanguage?.color ?? '#949ba4'
             return `<a href="${escapeXml(project.url)}" target="_blank" rel="noopener noreferrer" data-project="${escapeXml(project.name)}">
-  <rect x="${x}" y="${y}" width="${cellWidth}" height="92" rx="14" fill="#232428" stroke="#3a3c42" />
+  ${renderNebulaPanel({
+    x,
+    y,
+    width: cellWidth,
+    height: 92,
+    filterId: 'nebula-panel-glow',
+  })}
   <path d="M0 0h11l3 3h12v18H0z" transform="translate(${x + 15} ${y + 15}) scale(.55)" fill="#949ba4" />
   <text x="${x + 38}" y="${y + 27}" font-family="${FONT}" font-size="14" font-weight="700" fill="#f2f3f5">${escapeXml(truncateText(project.name, 28))}</text>
   <text x="${x + 15}" y="${y + 50}" font-family="${FONT}" font-size="12.5" fill="#949ba4">${escapeXml(truncateText(project.description?.trim() || 'No description', 48))}</text>
@@ -300,7 +377,13 @@ function renderContributions(
 
   return `<g data-nebula-contributions="true" data-contributions="true" data-contribution-weeks="${weeks}" data-contribution-total="${payload.calendar.totalContributions}">
   <text x="${PAD}" y="${frame.y + 32}" font-family="${FONT}" font-size="15" font-weight="800" fill="#f2f3f5">Contributions</text>
-  <rect x="${panelX}" y="${panelY}" width="${panelWidth}" height="${panelHeight}" rx="14" fill="#232428" stroke="#3a3c42" />
+  ${renderNebulaPanel({
+    x: panelX,
+    y: panelY,
+    width: panelWidth,
+    height: panelHeight,
+    filterId: 'nebula-panel-glow',
+  })}
   ${cells}
 </g>`
 }
@@ -321,7 +404,15 @@ function renderLinks(payload: Payload<'links'>, frame: EffectFrame): string {
           ? 'url(#nebula-support)'
           : '#232428'
       return `<g data-${payload.kind}="${escapeXml(link.id)}" aria-label="${escapeXml(`${link.label}: ${link.value}`)}">
-  <rect x="${x}" y="${y}" width="${cellWidth}" height="58" rx="12" fill="${fill}" stroke="${payload.kind === 'donate' ? '#4a3c6e' : '#3a3c42'}" />
+  ${renderNebulaPanel({
+    x,
+    y,
+    width: cellWidth,
+    height: 58,
+    radius: TILE_RADIUS,
+    fill,
+    filterId: 'nebula-panel-glow',
+  })}
   <rect x="${x + 14}" y="${y + 12}" width="34" height="34" rx="9" fill="${brand}" />
   <g transform="translate(${x + 21} ${y + 19}) scale(${20 / 24})" fill="#ffffff"><path d="${escapeXml(link.icon.path)}" /></g>
   <text x="${x + 60}" y="${y + 24}" font-family="${FONT}" font-size="10.5" font-weight="700" letter-spacing="0.5" fill="${payload.kind === 'donate' ? '#c9b8ff' : '#949ba4'}">${escapeXml(link.label.toUpperCase())}</text>
@@ -346,8 +437,14 @@ function renderGiphy(payload: Payload<'giphy'>, frame: EffectFrame): string {
   const clip = `nebula-giphy-${frame.y}`
   return `<g data-nebula-giphy="true" data-giphy="${escapeXml(payload.gif.id)}" aria-label="${escapeXml(payload.gif.title)}">
   <text x="${PAD}" y="${frame.y + 32}" font-family="${FONT}" font-size="15" font-weight="800" fill="#f2f3f5">Giphy</text>
-  <defs><clipPath id="${clip}"><rect x="${x}" y="${y}" width="${imageWidth}" height="${imageHeight}" rx="14" /></clipPath></defs>
-  <rect x="${x}" y="${y}" width="${imageWidth}" height="${imageHeight}" rx="14" fill="#232428" stroke="#3a3c42" />
+  <defs><clipPath id="${clip}"><rect x="${x}" y="${y}" width="${imageWidth}" height="${imageHeight}" rx="${PANEL_RADIUS}" /></clipPath></defs>
+  ${renderNebulaPanel({
+    x,
+    y,
+    width: imageWidth,
+    height: imageHeight,
+    filterId: 'nebula-panel-glow',
+  })}
   <image href="${escapeXml(payload.gif.dataUrl)}" x="${x}" y="${y}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clip})" />
 </g>`
 }
@@ -445,7 +542,7 @@ export function renderNebulaCard(context: ThemeRenderContext): string {
     const divider =
       index === 0
         ? ''
-        : `<line x1="${PAD}" y1="${frame.y}" x2="${width - PAD}" y2="${frame.y}" stroke="#3a3c42" />`
+        : `<line x1="${PAD}" y1="${frame.y}" x2="${width - PAD}" y2="${frame.y}" stroke="#a78bfa" stroke-opacity="0.28" stroke-width="1.25" filter="url(#nebula-divider-glow)" />`
     const content = renderSectionContent(
       section,
       frame,
@@ -487,7 +584,7 @@ ${sectionMarkup.overlay ?? ''}
     )
     .join('')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${context.titleId} ${context.descriptionId}" data-theme="nebula" data-theme-renderer="nebula" data-outline="${context.outline}" data-sections="${escapeXml(sections.map((section) => section.id).join(','))}" data-background-effect="${effects.background}" data-card-effect="${effects.card}" data-avatar-effect="${effects.avatar}"${context.rootData}>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${context.titleId} ${context.descriptionId}" data-theme="nebula" data-theme-renderer="nebula" data-outline="${context.outline}" data-sections="${escapeXml(sections.map((section) => section.id).join(','))}" data-background-effect="${effects.background}" data-card-effect="${effects.card}" data-avatar-effect="${effects.avatar}" data-nebula-surface="glow"${context.rootData}>
   <title id="${context.titleId}">${escapeXml(context.title)}</title>
   <desc id="${context.descriptionId}">${escapeXml(context.description)}</desc>
   <defs>
@@ -495,13 +592,15 @@ ${sectionMarkup.overlay ?? ''}
     <linearGradient id="nebula-banner" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8b5cf6" /><stop offset="48%" stop-color="#a855f7" /><stop offset="100%" stop-color="#6d7cff" /></linearGradient>
     <linearGradient id="nebula-avatar-ring" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#c4a4ff" /><stop offset="100%" stop-color="#a46cff" /></linearGradient>
     <linearGradient id="nebula-support" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4b2b70" /><stop offset="100%" stop-color="#3d285e" /></linearGradient>
-    <clipPath id="${cardClip}"><rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="24" /></clipPath>
+    ${renderGlowFilters('nebula')}
+    <clipPath id="${cardClip}"><rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${CARD_RADIUS}" ry="${CARD_RADIUS}" /></clipPath>
     ${sectionClips}
     ${backgroundMarkup.defs ?? ''}
     ${cardMarkup.defs ?? ''}
     ${markupPart(scopedMarkups, 'defs')}
   </defs>
-  <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="24" fill="url(#nebula-card)" stroke="#3a3c42" />
+  <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${CARD_RADIUS}" ry="${CARD_RADIUS}" fill="url(#nebula-card)" filter="url(#nebula-card-glow)" data-nebula-card-shell="true" />
+  <g clip-path="url(#${cardClip})" data-nebula-card-content="true">
   ${backgroundMarkup.underlay ?? ''}
   ${cardMarkup.underlay ?? ''}
   ${renderedSections.map((section) => section.markup).join('\n')}
@@ -510,5 +609,6 @@ ${sectionMarkup.overlay ?? ''}
     width,
     height,
   })}
+  </g>
 </svg>`
 }

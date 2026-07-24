@@ -172,6 +172,16 @@ describe('renderProfileCard effects', () => {
 
     expect(svg).toContain('width="842" height="492"')
     expect(svg).toContain('data-theme-renderer="nebula"')
+    expect(svg).toContain('data-nebula-surface="glow"')
+    expect(svg).toContain('data-nebula-card-shell="true"')
+    expect(svg).toContain('data-nebula-card-content="true"')
+    expect(svg).toContain('filter="url(#nebula-card-glow)"')
+    expect(svg).toContain('filter="url(#nebula-panel-glow)"')
+    expect(svg).toContain(`rx="${24}"`)
+    expect(svg).toContain(`ry="${24}"`)
+    expect(svg).not.toMatch(
+      /data-nebula-card-shell="true"[^>]*stroke=/,
+    )
     expect(svg).toContain('data-nebula-banner="true"')
     expect(svg).toContain('data-nebula-identity="true"')
     expect(svg).toContain('data-nebula-stat="followers"')
