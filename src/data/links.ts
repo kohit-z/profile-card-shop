@@ -7,6 +7,8 @@ import {
   siOpencollective,
   siPatreon,
   siPaypal,
+  siTelegram,
+  siWhatsapp,
   siX,
   type SimpleIcon,
 } from 'simple-icons'
@@ -25,6 +27,8 @@ export const CONTACT_CATALOG = {
   email: { id: 'email', label: 'Email', icon: siGmail },
   github: { id: 'github', label: 'GitHub', icon: siGithub },
   discord: { id: 'discord', label: 'Discord', icon: siDiscord },
+  telegram: { id: 'telegram', label: 'Telegram', icon: siTelegram },
+  whatsapp: { id: 'whatsapp', label: 'WhatsApp', icon: siWhatsapp },
   x: { id: 'x', label: 'X', icon: siX },
 } as const satisfies Record<string, LinkPlatform>
 

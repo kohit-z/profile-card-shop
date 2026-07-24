@@ -11,13 +11,13 @@ describe('parseProfileQuery', () => {
   it('trims and normalizes a valid profile query', () => {
     expect(
       parseProfileQuery(
-        new URLSearchParams({ username: ' Octo-Cat ', theme: ' DARK ' }),
+        new URLSearchParams({ username: ' Octo-Cat ', theme: ' NEBULA ' }),
       ),
     ).toEqual({
       ok: true,
       value: {
         username: 'octo-cat',
-        theme: 'dark',
+        theme: 'nebula',
         effect: 'pulse',
       },
     })
@@ -28,7 +28,7 @@ describe('parseProfileQuery', () => {
       parseProfileQuery(
         new URLSearchParams({
           username: 'octocat',
-          theme: 'ocean',
+          theme: 'nebula',
           effect: ' Aurora ',
         }),
       ),
@@ -36,9 +36,38 @@ describe('parseProfileQuery', () => {
       ok: true,
       value: {
         username: 'octocat',
-        theme: 'ocean',
+        theme: 'nebula',
         effect: 'aurora',
       },
+    })
+  })
+
+  it('accepts a Giphy GIF for the nebula banner', () => {
+    expect(
+      parseProfileQuery(
+        new URLSearchParams({
+          username: 'octocat',
+          theme: 'nebula',
+          bannerGiphy: '  Space Cat  ',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { bannerGiphy: 'Space Cat' },
+    })
+  })
+
+  it('rejects a banner GIF outside the nebula theme', () => {
+    expect(
+      parseProfileQuery(
+        new URLSearchParams({
+          username: 'octocat',
+          bannerGiphy: 'space cat',
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'banner_giphy_theme_required' },
     })
   })
 
@@ -87,7 +116,7 @@ describe('parseSkillsQuery', () => {
       parseSkillsQuery(
         new URLSearchParams({
           skills: ' TypeScript, react,typescript,Node.js ',
-          theme: 'Sunset',
+          theme: 'Nebula',
           labels: 'false',
         }),
       ),
@@ -95,10 +124,66 @@ describe('parseSkillsQuery', () => {
       ok: true,
       value: {
         skills: ['typescript', 'react', 'node.js'],
-        theme: 'sunset',
+        theme: 'nebula',
         labels: false,
+        iconTheme: 'accent',
+        outline: 'rounded',
       },
     })
+  })
+
+  it('parses skill icon theme and global outline options', () => {
+    expect(
+      parseSkillsQuery(
+        new URLSearchParams({
+          skills: 'react',
+          iconTheme: 'Brand',
+          outline: 'Soft',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        iconTheme: 'brand',
+        outline: 'soft',
+      },
+    })
+
+    expect(
+      parseSkillsQuery(
+        new URLSearchParams({ skills: 'react', iconTheme: 'neon' }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'icon_theme_invalid' },
+    })
+
+    expect(
+      parseSkillsQuery(
+        new URLSearchParams({ skills: 'react', outline: 'bevel' }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'outline_invalid' },
+    })
+  })
+
+  it('ignores stale iconBorder input for skills and card queries', () => {
+    const skills = parseSkillsQuery(
+      new URLSearchParams({ skills: 'react', iconBorder: 'glow' }),
+    )
+    const card = parseCardQuery(
+      new URLSearchParams({
+        sections: 'skills',
+        skills: 'react',
+        iconBorder: 'circle',
+      }),
+    )
+
+    expect(skills).toMatchObject({ ok: true })
+    expect(card).toMatchObject({ ok: true })
+    if (skills.ok) expect(skills.value).not.toHaveProperty('iconBorder')
+    if (card.ok) expect(card.value).not.toHaveProperty('iconBorder')
   })
 
   it('requires at least one skill', () => {
@@ -154,7 +239,7 @@ describe('parseSkillsQuery', () => {
 
   it('rejects oversized raw query values before parsing', () => {
     const result = parseSkillsQuery(
-      new URLSearchParams({ skills: `git,${'a'.repeat(1000)}` }),
+      new URLSearchParams({ skills: `git,${'a'.repeat(3000)}` }),
     )
 
     expect(result).toMatchObject({
@@ -189,9 +274,117 @@ describe('parseCardQuery', () => {
     })
   })
 
+  it('requires a username for the projects section', () => {
+    expect(
+      parseCardQuery(new URLSearchParams({ sections: 'projects' })),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'username_required' },
+    })
+    expect(
+      parseCardQuery(
+        new URLSearchParams({ sections: 'projects', username: 'octocat' }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { sections: ['projects'], username: 'octocat' },
+    })
+  })
+
+  it('requires a username for the contributions section', () => {
+    expect(
+      parseCardQuery(new URLSearchParams({ sections: 'contributions' })),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'username_required' },
+    })
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'contributions',
+          username: 'octocat',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { sections: ['contributions'], username: 'octocat' },
+    })
+  })
+
+  it('parses a giphy search query', () => {
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'giphy',
+          giphy: '  Coding Cat  ',
+          effects: 'giphy:grid',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        sections: ['giphy'],
+        giphy: 'Coding Cat',
+        effects: { sections: { giphy: 'grid' } },
+      },
+    })
+  })
+
+  it('parses a Giphy GIF for a nebula profile banner', () => {
+    expect(
+      parseCardQuery(
+        new URLSearchParams({
+          sections: 'profile,stats',
+          username: 'octocat',
+          theme: 'nebula',
+          bannerGiphy: '  Space Cat  ',
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { bannerGiphy: 'Space Cat' },
+    })
+  })
+
+  it.each([
+    [
+      {
+        sections: 'profile',
+        username: 'octocat',
+        bannerGiphy: 'space cat',
+      },
+      'banner_giphy_theme_required',
+    ],
+    [
+      {
+        sections: 'skills',
+        skills: 'typescript',
+        theme: 'nebula',
+        bannerGiphy: 'space cat',
+      },
+      'banner_giphy_profile_required',
+    ],
+    [
+      {
+        sections: 'profile',
+        username: 'octocat',
+        theme: 'nebula',
+        bannerGiphy: 'bad!query',
+      },
+      'banner_giphy_invalid',
+    ],
+  ])('rejects an invalid banner Giphy composition %#', (query, code) => {
+    expect(parseCardQuery(new URLSearchParams(query))).toMatchObject({
+      ok: false,
+      error: { code },
+    })
+  })
+
   it.each([
     [{ sections: 'contact' }, 'contact_required'],
     [{ sections: 'donate' }, 'donate_required'],
+    [{ sections: 'giphy' }, 'giphy_required'],
+    [{ sections: 'giphy', giphy: 'bad!query' }, 'giphy_invalid'],
     [{ sections: 'contact', contact: 'email:https://example.com' }, 'contact_invalid'],
   ])('rejects invalid link section fields %#', (query, code) => {
     expect(parseCardQuery(new URLSearchParams(query))).toMatchObject({

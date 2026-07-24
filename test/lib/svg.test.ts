@@ -17,7 +17,7 @@ import {
 
 describe('theme registry', () => {
   it('provides all supported themes with typed card tokens', () => {
-    expect(THEME_NAMES).toEqual(['default', 'dark', 'ocean', 'sunset'])
+    expect(THEME_NAMES).toEqual(['default', 'nebula'])
 
     for (const name of THEME_NAMES) {
       const theme = getTheme(name)
@@ -30,7 +30,7 @@ describe('theme registry', () => {
   })
 
   it('normalizes known theme names and falls back predictably', () => {
-    expect(resolveThemeName(' OCEAN ')).toBe('ocean')
+    expect(resolveThemeName(' NEBULA ')).toBe('nebula')
     expect(resolveThemeName('unknown')).toBe(DEFAULT_THEME_NAME)
     expect(resolveThemeName(undefined)).toBe(DEFAULT_THEME_NAME)
   })
@@ -53,7 +53,7 @@ describe('SVG utilities', () => {
     const svg = renderErrorCard({
       title: '<Invalid>',
       message: `Retry & ${'x'.repeat(200)}`,
-      theme: 'ocean',
+      theme: 'nebula',
     })
 
     expect(svg).toContain('&lt;Invalid&gt;')

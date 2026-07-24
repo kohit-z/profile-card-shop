@@ -8,20 +8,56 @@ import {
 
 const originalToken = process.env.GITHUB_TOKEN
 
+const DEFAULT_PINNED = [
+  {
+    name: 'Hello-World',
+    description: 'My first repository on GitHub!',
+    url: 'https://github.com/octocat/Hello-World',
+    stargazerCount: 2500,
+    primaryLanguage: { name: 'C', color: '#555555' },
+  },
+]
+
+const DEFAULT_CONTRIBUTIONS_COLLECTION = {
+  totalCommitContributions: 240,
+  totalIssueContributions: 12,
+  totalPullRequestContributions: 34,
+  totalPullRequestReviewContributions: 56,
+  contributionCalendar: {
+    totalContributions: 365,
+    weeks: [
+      {
+        contributionDays: [
+          {
+            date: '2025-01-05',
+            contributionCount: 2,
+            contributionLevel: 'FIRST_QUARTILE',
+            color: '#9be9a8',
+          },
+        ],
+      },
+    ],
+  },
+}
+
 function graphQlResponse({
   after = null,
   avatarUrl = 'https://avatars.githubusercontent.com/u/1?v=4',
   bio = 'Ship useful things.',
   hasNextPage = false,
-  nodes = [{ stargazerCount: 7 }],
+  nodes = [{ stargazerCount: 7, primaryLanguage: null }],
+  pinnedNodes = DEFAULT_PINNED,
   user = true,
+  userOverrides = {},
 }: {
   after?: string | null
   avatarUrl?: string
   bio?: string | null
   hasNextPage?: boolean
-  nodes?: Array<{ stargazerCount: number }>
+  nodes?: Array<unknown>
+  pinnedNodes?: Array<unknown>
   user?: boolean
+  userOverrides?: Record<string, unknown>
 } = {}): Response {
   return Response.json({
     data: {
@@ -31,7 +67,16 @@ function graphQlResponse({
             name: 'The Octocat',
             bio,
             avatarUrl,
+            createdAt: '2011-01-25T18:44:36Z',
+            isGitHubStar: true,
+            hasSponsorsListing: false,
             followers: { totalCount: 42 },
+            organizations: { totalCount: 3 },
+            pullRequests: { totalCount: 120 },
+            issues: { totalCount: 80 },
+            repositoriesContributedTo: { totalCount: 25 },
+            starredRepositories: { totalCount: 300 },
+            pinnedItems: { nodes: pinnedNodes },
             repositories: {
               totalCount: 101,
               nodes,
@@ -40,9 +85,8 @@ function graphQlResponse({
                 endCursor: after,
               },
             },
-            contributionsCollection: {
-              contributionCalendar: { totalContributions: 365 },
-            },
+            contributionsCollection: DEFAULT_CONTRIBUTIONS_COLLECTION,
+            ...userOverrides,
           }
         : null,
     },
@@ -80,12 +124,25 @@ describe('fetchGitHubProfile', () => {
         graphQlResponse({
           after: 'next-page',
           hasNextPage: true,
-          nodes: [{ stargazerCount: 2 }, { stargazerCount: 3 }],
+          nodes: [
+            {
+              stargazerCount: 2,
+              primaryLanguage: { name: 'TypeScript' },
+            },
+            { stargazerCount: 3, primaryLanguage: { name: 'Go' } },
+            {
+              stargazerCount: 0,
+              primaryLanguage: { name: 'TypeScript' },
+            },
+          ],
         }),
       )
       .mockResolvedValueOnce(
         graphQlResponse({
-          nodes: [{ stargazerCount: 5 }],
+          nodes: [
+            { stargazerCount: 5, primaryLanguage: { name: 'Rust' } },
+            { stargazerCount: 0, primaryLanguage: null },
+          ],
         }),
       )
       .mockResolvedValueOnce(avatarResponse())
@@ -104,6 +161,45 @@ describe('fetchGitHubProfile', () => {
       repositories: 101,
       stars: 10,
       contributions: 365,
+      activity: {
+        createdAt: '2011-01-25T18:44:36Z',
+        organizations: 3,
+        authoredPullRequests: 120,
+        authoredIssues: 80,
+        repositoriesContributedTo: 25,
+        starredRepositories: 300,
+        commitContributions: 240,
+        issueContributions: 12,
+        pullRequestContributions: 34,
+        pullRequestReviewContributions: 56,
+        isGitHubStar: true,
+        hasSponsorsListing: false,
+        repositoryLanguages: ['TypeScript', 'Go', 'Rust'],
+      },
+      contributionCalendar: {
+        totalContributions: 365,
+        weeks: [
+          {
+            contributionDays: [
+              {
+                date: '2025-01-05',
+                contributionCount: 2,
+                contributionLevel: 'FIRST_QUARTILE',
+                color: '#9be9a8',
+              },
+            ],
+          },
+        ],
+      },
+      pinnedRepositories: [
+        {
+          name: 'Hello-World',
+          description: 'My first repository on GitHub!',
+          url: 'https://github.com/octocat/Hello-World',
+          stargazerCount: 2500,
+          primaryLanguage: { name: 'C', color: '#555555' },
+        },
+      ],
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
 
@@ -115,6 +211,13 @@ describe('fetchGitHubProfile', () => {
     })
     expect(firstBody.variables).toEqual({ login: 'octocat', after: null })
     expect(firstBody.query).not.toContain('octocat')
+    expect(firstBody.query).toContain('contributionLevel')
+    expect(firstBody.query).toContain('totalPullRequestReviewContributions')
+    expect(firstBody.query).toContain('hasSponsorsListing')
+    expect(firstBody.query).toContain('repositoriesContributedTo')
+    expect(firstBody.query).toMatch(
+      /repositories\([\s\S]*nodes\s*\{[\s\S]*primaryLanguage\s*\{/,
+    )
 
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body))
     expect(secondBody.variables).toEqual({
@@ -125,6 +228,98 @@ describe('fetchGitHubProfile', () => {
       'https://avatars.githubusercontent.com/u/1?v=4',
     )
     expect(fetchMock.mock.calls[2][1]).not.toHaveProperty('headers')
+  })
+
+  it('strictly validates added activity metrics and repository languages', async () => {
+    const malformedValues: Array<Record<string, unknown>> = [
+      { createdAt: undefined },
+      { createdAt: 'January 25, 2011' },
+      { createdAt: '2011-02-30T18:44:36Z' },
+      { organizations: { totalCount: -1 } },
+      { pullRequests: { totalCount: 1.5 } },
+      { issues: { totalCount: '80' } },
+      { repositoriesContributedTo: { totalCount: null } },
+      { starredRepositories: { totalCount: Number.MAX_SAFE_INTEGER + 1 } },
+      { isGitHubStar: 1 },
+      { hasSponsorsListing: 'false' },
+      {
+        contributionsCollection: {
+          ...DEFAULT_CONTRIBUTIONS_COLLECTION,
+          totalCommitContributions: -1,
+        },
+      },
+      {
+        contributionsCollection: {
+          ...DEFAULT_CONTRIBUTIONS_COLLECTION,
+          totalIssueContributions: null,
+        },
+      },
+      {
+        contributionsCollection: {
+          ...DEFAULT_CONTRIBUTIONS_COLLECTION,
+          totalPullRequestContributions: 2.5,
+        },
+      },
+      {
+        contributionsCollection: {
+          ...DEFAULT_CONTRIBUTIONS_COLLECTION,
+          totalPullRequestReviewContributions: '56',
+        },
+      },
+      ...['2025-2-03', '2025-02-30'].map((date) => ({
+        contributionsCollection: {
+          ...DEFAULT_CONTRIBUTIONS_COLLECTION,
+          contributionCalendar: {
+            totalContributions: 1,
+            weeks: [
+              {
+                contributionDays: [
+                  {
+                    date,
+                    contributionCount: 1,
+                    contributionLevel: 'FIRST_QUARTILE',
+                    color: '#9be9a8',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })),
+    ]
+
+    for (const userOverrides of malformedValues) {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(graphQlResponse({ userOverrides })),
+      )
+
+      await expect(
+        fetchGitHubProfile('octocat', {
+          token: 'secret-token',
+          includeAvatar: false,
+        }),
+      ).rejects.toMatchObject({ code: 'malformed_response' })
+    }
+
+    for (const name of [42, '']) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof fetch>().mockResolvedValue(
+          graphQlResponse({
+            nodes: [{ stargazerCount: 7, primaryLanguage: { name } }],
+          }),
+        ),
+      )
+      await expect(
+        fetchGitHubProfile('octocat', {
+          token: 'secret-token',
+          includeAvatar: false,
+        }),
+      ).rejects.toMatchObject({ code: 'malformed_response' })
+    }
   })
 
   it('skips the avatar request when only statistics are needed', async () => {

@@ -1,12 +1,17 @@
+import {
+  iconOutlineRadius,
+  renderItemOutlineRect,
+} from '../../data/outline-style.js'
 import type { CardLink } from '../../data/links.js'
 import { escapeXml, truncateText } from '../../lib/svg.js'
 import { defineCardSection, type CardSection } from '../card.js'
 
-const CARD_PADDING = 18
-const TITLE_HEIGHT = 48
+const CARD_PADDING = 22
+const TITLE_HEIGHT = 46
 const CELL_GAP = 12
-const CELL_HEIGHT = 64
+const CELL_HEIGHT = 66
 const ICON_SIZE = 30
+const ICON_SLOT_RADIUS = 8
 const COLUMNS = 2
 
 function createLinksSection(
@@ -28,31 +33,49 @@ function createLinksSection(
     height,
     title: `${title}: ${names}`,
     description: `A ${id} section with ${links.length} ${links.length === 1 ? 'option' : 'options'}: ${names}.`,
-    render: ({ frame, theme, fontFamily }) => {
+    payload: { type: 'links', kind: id, links },
+    render: ({ frame, theme, fontFamily, outline }) => {
       const available = frame.width - CARD_PADDING * 2 - CELL_GAP
       const cellWidth = available / COLUMNS
+      const badgeRadius = iconOutlineRadius(outline, ICON_SIZE, ICON_SLOT_RADIUS)
       const groups = links
         .map((link, index) => {
           const column = index % COLUMNS
           const row = Math.floor(index / COLUMNS)
           const x = CARD_PADDING + column * (cellWidth + CELL_GAP)
           const y = frame.y + TITLE_HEIGHT + row * (CELL_HEIGHT + CELL_GAP)
-          const iconX = x + 16
+          const iconX = x + 14
           const iconY = y + (CELL_HEIGHT - ICON_SIZE) / 2
           const textX = iconX + ICON_SIZE + 12
+          const iconInset = ICON_SIZE * 0.18
+          const badge =
+            outline === 'none'
+              ? ''
+              : `<rect x="${iconX}" y="${iconY}" width="${ICON_SIZE}" height="${ICON_SIZE}" rx="${badgeRadius}" fill="${theme.colors.accent}" fill-opacity="0.14" />`
           return `<g data-${id}="${escapeXml(link.id)}" aria-label="${escapeXml(`${link.label}: ${link.value}`)}">
-  <rect x="${x}" y="${y}" width="${cellWidth}" height="${CELL_HEIGHT}" rx="9" fill="${theme.colors.background}" fill-opacity="0.72" stroke="${theme.colors.border}" />
-  <g transform="translate(${iconX} ${iconY}) scale(${ICON_SIZE / 24})" color="${theme.colors.accent}">
+  ${renderItemOutlineRect({
+    x,
+    y,
+    width: cellWidth,
+    height: CELL_HEIGHT,
+    fill: theme.colors.background,
+    fillOpacity: 0.75,
+    borderColor: theme.colors.border,
+    outline,
+    radiusFallback: 10,
+  })}
+  ${badge}
+  <g transform="translate(${iconX + iconInset} ${iconY + iconInset}) scale(${(ICON_SIZE * 0.64) / 24})" color="${theme.colors.accent}">
     <path d="${escapeXml(link.icon.path)}" fill="currentColor" />
   </g>
-  <text x="${textX}" y="${y + 25}" font-family="${fontFamily}" font-size="13" font-weight="700" fill="${theme.colors.foreground}">${escapeXml(link.label)}</text>
-  <text x="${textX}" y="${y + 45}" font-family="${fontFamily}" font-size="12" fill="${theme.colors.muted}">${escapeXml(truncateText(link.value, 36))}</text>
+  <text x="${textX}" y="${y + CELL_HEIGHT / 2 - 5}" font-family="${fontFamily}" font-size="12.5" font-weight="700" fill="${theme.colors.foreground}">${escapeXml(link.label)}</text>
+  <text x="${textX}" y="${y + CELL_HEIGHT / 2 + 14}" font-family="${fontFamily}" font-size="11.5" fill="${theme.colors.muted}">${escapeXml(truncateText(link.value, 26))}</text>
 </g>`
         })
         .join('\n')
 
-      return `<g data-columns="${COLUMNS}" data-rows="${rows}">
-  <text x="${CARD_PADDING}" y="${frame.y + 32}" font-family="${fontFamily}" font-size="${theme.typography.titleSize}" font-weight="700" fill="${theme.colors.foreground}">${title}</text>
+      return `<g data-columns="${COLUMNS}" data-rows="${rows}" data-outline="${outline}">
+  <text x="${CARD_PADDING}" y="${frame.y + 30}" font-family="${fontFamily}" font-size="17" font-weight="700" fill="${theme.colors.foreground}">${title}</text>
 ${groups}
 </g>`
     },

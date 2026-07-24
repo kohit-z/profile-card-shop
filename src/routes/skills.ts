@@ -13,7 +13,16 @@ import { renderSkillsCard } from '../widgets/skills.js'
 export const skillsRoutes = new Hono()
 
 skillsRoutes.get('/skills', (context) => {
-  const params = new URL(context.req.url).searchParams
+  const requestUrl = new URL(context.req.url)
+  if (requestUrl.searchParams.has('iconBorder')) {
+    requestUrl.searchParams.delete('iconBorder')
+    return context.redirect(
+      `${requestUrl.pathname}${requestUrl.search}`,
+      308,
+    )
+  }
+
+  const params = requestUrl.searchParams
   const query = parseSkillsQuery(params)
   const theme = resolveThemeName(params.get('theme'))
 
@@ -46,10 +55,10 @@ skillsRoutes.get('/skills', (context) => {
   }
 
   return svgResponse(
-    renderSkillsCard(
-      resolved.skills,
-      query.value.theme,
-      query.value.labels,
-    ),
+    renderSkillsCard(resolved.skills, query.value.theme, {
+      labels: query.value.labels,
+      iconTheme: query.value.iconTheme,
+      outline: query.value.outline,
+    }),
   )
 })

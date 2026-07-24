@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitHub Deco — Redesign</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+  <style>
+    body { margin: 0; background: oklch(0.97 0.006 250); }
+    a { color: oklch(0.5 0.16 275); }
+    a:hover { color: oklch(0.42 0.18 275); }
+    ::selection { background: oklch(0.5 0.16 275 / 0.25); }
+  </style>
+</helmet>
+
+<div style="font-family: Inter, system-ui, sans-serif; color: oklch(0.22 0.015 260); min-height: 100vh;">
+
+  <header style="padding: 20px clamp(20px,4vw,56px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid oklch(0.9 0.006 250);">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 30px; height: 30px; border-radius: 8px; background: oklch(0.5 0.16 275); display: grid; place-items: center; color: white; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px;">GD</div>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: -0.01em;">GitHub Deco</span>
+    </div>
+    <span style="font-size: 12.5px; color: oklch(0.5 0.01 260); font-weight: 500;">Card &amp; builder redesign</span>
+  </header>
+
+  <main style="padding: clamp(28px,4vw,56px); display: grid; gap: 44px;">
+
+    <section style="max-width: 760px;">
+      <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: clamp(30px,4.2vw,44px); line-height: 1.05; letter-spacing: -0.02em; margin: 0 0 12px;">Compose your card, watch it render live.</h1>
+      <p style="font-size: 16px; line-height: 1.6; color: oklch(0.45 0.015 260); margin: 0;">Every field below maps to a real <code style="background: oklch(0.93 0.006 250); padding: 2px 6px; border-radius: 5px; font-size: 0.92em;">/api/card</code> query param. Toggle a section to reveal only the controls that matter for it, then copy the finished Markdown embed.</p>
+    </section>
+
+    <section style="display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 20px; align-items: start;">
+
+      <!-- CONTROLS -->
+      <div style="display: grid; gap: 14px; position: sticky; top: 20px;">
+
+        <div style="background: white; border: 1px solid oklch(0.9 0.006 250); border-radius: 16px; padding: 18px; display: grid; gap: 16px;">
+          <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; color: oklch(0.4 0.01 260);">CONTENT</div>
+
+          <div style="display: grid; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Sections</span>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;">
+              <sc-for list="{{ sections }}" as="s" hint-placeholder-count="5">
+                <button type="button" onClick="{{ s.toggle }}" style="border: 1.5px solid oklch(0.88 0.006 250); background: white; border-radius: 10px; padding: 10px 12px; cursor: pointer; font: 600 13px Inter, sans-serif; display: flex; align-items: center; gap: 8px; min-height: 44px;" style-hover="border-color: oklch(0.5 0.16 275);">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ s.dotColor }}; flex-shrink: 0;"></span>
+                  {{ s.label }}
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <sc-if value="{{ showUsername }}" hint-placeholder-val="{{ true }}">
+            <div style="display: grid; gap: 6px;">
+              <label for="username" style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">GitHub username</label>
+              <input id="username" value="{{ username }}" onChange="{{ setUsername }}" autocomplete="off" spellcheck="false" style="border: 1.5px solid oklch(0.88 0.006 250); border-radius: 10px; padding: 10px 12px; font: 500 14px ui-monospace, monospace; min-height: 44px;" />
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showSkills }}" hint-placeholder-val="{{ true }}">
+            <div style="display: grid; gap: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Skills ({{ skillCount }}/20)</span>
+                <button type="button" onClick="{{ toggleLabels }}" style="border: none; background: none; color: oklch(0.5 0.16 275); font: 600 12px Inter, sans-serif; cursor: pointer; padding: 4px;">{{ labelsToggleText }}</button>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <sc-for list="{{ skills }}" as="sk" hint-placeholder-count="12">
+                  <button type="button" onClick="{{ sk.toggle }}" title="{{ sk.label }}" style="border: 1.5px solid {{ sk.borderColor }}; background: {{ sk.bg }}; color: {{ sk.fg }}; border-radius: 999px; padding: 7px 12px; font: 700 11.5px ui-monospace, monospace; cursor: pointer; min-height: 32px;">{{ sk.mono }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showContact }}" hint-placeholder-val="{{ false }}">
+            <div style="display: grid; gap: 8px;">
+              <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Contact options</span>
+              <div style="display: grid; gap: 6px;">
+                <sc-for list="{{ contactRows }}" as="row" hint-placeholder-count="4">
+                  <div style="display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center;">
+                    <button type="button" onClick="{{ row.toggle }}" aria-pressed="{{ row.on }}" style="border: 1.5px solid {{ row.chipBorder }}; background: {{ row.chipBg }}; color: {{ row.chipFg }}; border-radius: 8px; height: 34px; font: 700 10.5px ui-monospace, monospace; cursor: pointer;">{{ row.mono }}</button>
+                    <input value="{{ row.value }}" onChange="{{ row.setValue }}" placeholder="{{ row.placeholder }}" style="border: 1.5px solid oklch(0.88 0.006 250); border-radius: 8px; padding: 8px 10px; font: 500 13px Inter, sans-serif; min-height: 34px;" />
+                  </div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ contactEmpty }}" hint-placeholder-val="{{ false }}">
+                <p style="margin: 0; font-size: 12px; color: oklch(0.55 0.14 40);">Fill in at least one platform to include this section.</p>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showDonate }}" hint-placeholder-val="{{ false }}">
+            <div style="display: grid; gap: 8px;">
+              <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Donate options</span>
+              <div style="display: grid; gap: 6px;">
+                <sc-for list="{{ donateRows }}" as="row" hint-placeholder-count="6">
+                  <div style="display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center;">
+                    <button type="button" onClick="{{ row.toggle }}" aria-pressed="{{ row.on }}" style="border: 1.5px solid {{ row.chipBorder }}; background: {{ row.chipBg }}; color: {{ row.chipFg }}; border-radius: 8px; height: 34px; font: 700 10.5px ui-monospace, monospace; cursor: pointer;">{{ row.mono }}</button>
+                    <input value="{{ row.value }}" onChange="{{ row.setValue }}" placeholder="{{ row.placeholder }}" style="border: 1.5px solid oklch(0.88 0.006 250); border-radius: 8px; padding: 8px 10px; font: 500 13px Inter, sans-serif; min-height: 34px;" />
+                  </div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ donateEmpty }}" hint-placeholder-val="{{ false }}">
+                <p style="margin: 0; font-size: 12px; color: oklch(0.55 0.14 40);">Fill in at least one platform to include this section.</p>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="background: white; border: 1px solid oklch(0.9 0.006 250); border-radius: 16px; padding: 18px; display: grid; gap: 14px;">
+          <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; color: oklch(0.4 0.01 260);">APPEARANCE</div>
+          <div style="display: grid; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Theme</span>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px;">
+              <sc-for list="{{ themes }}" as="th" hint-placeholder-count="4">
+                <button type="button" onClick="{{ th.select }}" style="border: 2px solid {{ th.ring }}; border-radius: 12px; padding: 8px; cursor: pointer; background: white; display: flex; align-items: center; gap: 8px; text-align: left; min-height: 44px;">
+                  <span style="width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, {{ th.from }}, {{ th.to }}); border: 1px solid {{ th.border }}; flex-shrink: 0;"></span>
+                  <span style="font: 600 12.5px Inter, sans-serif; color: oklch(0.25 0.01 260); text-transform: capitalize;">{{ th.name }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: white; border: 1px solid oklch(0.9 0.006 250); border-radius: 16px; padding: 18px; display: grid; gap: 16px;">
+          <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; color: oklch(0.4 0.01 260);">MOTION</div>
+
+          <div style="display: grid; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Background</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <sc-for list="{{ backgroundEffects }}" as="fx" hint-placeholder-count="3">
+                <button type="button" onClick="{{ fx.select }}" title="{{ fx.desc }}" style="border: 1.5px solid {{ fx.border }}; background: {{ fx.bg }}; color: {{ fx.fg }}; border-radius: 999px; padding: 6px 12px; font: 600 12px Inter, sans-serif; cursor: pointer; min-height: 32px;">{{ fx.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display: grid; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Card</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <sc-for list="{{ cardEffects }}" as="fx" hint-placeholder-count="8">
+                <button type="button" onClick="{{ fx.select }}" title="{{ fx.desc }}" style="border: 1.5px solid {{ fx.border }}; background: {{ fx.bg }}; color: {{ fx.fg }}; border-radius: 999px; padding: 6px 12px; font: 600 12px Inter, sans-serif; cursor: pointer; min-height: 32px;">{{ fx.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <sc-if value="{{ showAvatarEffects }}" hint-placeholder-val="{{ true }}">
+            <div style="display: grid; gap: 8px;">
+              <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Avatar</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <sc-for list="{{ avatarEffects }}" as="fx" hint-placeholder-count="7">
+                  <button type="button" onClick="{{ fx.select }}" title="{{ fx.desc }}" style="border: 1.5px solid {{ fx.border }}; background: {{ fx.bg }}; color: {{ fx.fg }}; border-radius: 999px; padding: 6px 12px; font: 600 12px Inter, sans-serif; cursor: pointer; min-height: 32px;">{{ fx.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ sectionEffectGroups }}" as="grp" hint-placeholder-count="0">
+            <div style="display: grid; gap: 8px;">
+              <span style="font-size: 12px; font-weight: 600; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">{{ grp.label }} section</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <sc-for list="{{ grp.options }}" as="fx" hint-placeholder-count="4">
+                  <button type="button" onClick="{{ fx.select }}" title="{{ fx.desc }}" style="border: 1.5px solid {{ fx.border }}; background: {{ fx.bg }}; color: {{ fx.fg }}; border-radius: 999px; padding: 6px 12px; font: 600 12px Inter, sans-serif; cursor: pointer; min-height: 32px;">{{ fx.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div style="display: grid; gap: 16px;">
+        <div style="background: oklch(0.99 0.003 250); border: 1px solid oklch(0.9 0.006 250); border-radius: 18px; padding: clamp(16px,3vw,32px); display: grid; place-items: center; min-height: 280px;">
+          <div ref="{{ previewRef }}" style="width: 100%; max-width: 842px;"></div>
+        </div>
+        <div style="background: white; border: 1px solid oklch(0.9 0.006 250); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 12px; font-weight: 700; color: oklch(0.5 0.01 260); text-transform: uppercase; letter-spacing: 0.05em;">Markdown embed</span>
+            <button type="button" onClick="{{ copyMarkdown }}" style="border: none; background: oklch(0.22 0.015 260); color: white; border-radius: 999px; padding: 7px 14px; font: 600 12px Inter, sans-serif; cursor: pointer;">{{ copyLabel }}</button>
+          </div>
+          <pre style="margin: 0; background: oklch(0.16 0.015 260); color: oklch(0.9 0.02 150); padding: 12px 14px; border-radius: 10px; font: 12px/1.55 ui-monospace, monospace; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ markdown }}</pre>
+        </div>
+      </div>
+    </section>
+
+    <section style="background: white; border: 1px solid oklch(0.9 0.006 250); border-radius: 18px; padding: clamp(20px,3vw,32px); display: grid; gap: 22px; max-width: 980px;">
+      <div>
+        <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em;">Implementation guide</div>
+        <p style="margin: 6px 0 0; color: oklch(0.45 0.015 260); font-size: 14px; line-height: 1.6;">What changed in this redesign and where to apply it in <code style="background: oklch(0.93 0.006 250); padding: 1px 5px; border-radius: 4px;">kohit-z/profile-card-shop</code>.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
+        <div style="display: grid; gap: 8px;">
+          <div style="font-weight: 700; font-size: 13.5px; color: oklch(0.5 0.16 275);">Card layout</div>
+          <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.7; color: oklch(0.3 0.01 260);">
+            <li>Avatar moved to cx=108 (was 92) and radius trimmed to 64px — clears room so the name/bio column stops feeling cramped against the circle.</li>
+            <li>Dropped the inline GitHub glyph next to the username; a plain "@handle" in accent color reads just as clearly with less visual noise.</li>
+            <li>Stat, skill, contact and donate tiles now share one badge language: a tinted rounded-square icon slot + bold value + uppercase label, instead of mixed circle/icon treatments.</li>
+            <li>Added hairline dividers between sections so a 4-section card doesn't read as one undifferentiated block.</li>
+          </ul>
+        </div>
+        <div style="display: grid; gap: 8px;">
+          <div style="font-weight: 700; font-size: 13.5px; color: oklch(0.55 0.14 40);">Effect bugs fixed</div>
+          <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.7; color: oklch(0.3 0.01 260);">
+            <li><b>equalizer</b> and <b>float</b> avatar effects placed bars/shadow at a fixed offset from the avatar center. When the profile section is paired with stats (122px tall vs 214px solo), that offset overshoots the section and draws through the stats row. Fixed by clamping both to <code>frame.y + frame.height</code>.</li>
+            <li><b>background:aurora</b> and <b>background:matrix</b> duplicate the exact markup in <code>card:aurora</code> / <code>card:matrix</code> — worth extracting to one shared helper both scopes call, so a future tweak doesn't need to land twice.</li>
+            <li>All 24 effects across the four scopes are otherwise functionally complete — every declared name in the registry has a working renderer; nothing was actually a stub.</li>
+          </ul>
+        </div>
+        <div style="display: grid; gap: 8px;">
+          <div style="font-weight: 700; font-size: 13.5px; color: oklch(0.5 0.16 275);">Builder UI</div>
+          <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.7; color: oklch(0.3 0.01 260);">
+            <li>Fields now appear only when their section is active (skills chips hide until "skills" is on, etc.) instead of showing all 14 controls flat regardless of relevance.</li>
+            <li>Contact/donate went from one error-prone comma-separated text input to a per-platform toggle + value row — no more manual <code>platform:value</code> syntax to get wrong.</li>
+            <li>Theme chips became real swatches (gradient + border preview) rather than plain text labels.</li>
+            <li>Panels use CSS grid <code>auto-fit/minmax</code> so the layout reflows on narrow viewports with no explicit breakpoints.</li>
+          </ul>
+        </div>
+        <div style="display: grid; gap: 8px;">
+          <div style="font-weight: 700; font-size: 13.5px; color: oklch(0.55 0.14 40);">Suggested next steps</div>
+          <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.7; color: oklch(0.3 0.01 260);">
+            <li>Add a <code>theme=auto</code> option that emits an SVG <code>&lt;style&gt;</code> block with <code>@media (prefers-color-scheme: dark)</code> swapping CSS custom properties — GitHub already renders README images against the visitor's OS theme, so the card could follow it natively.</li>
+            <li>Drag-to-reorder section chips in the builder, writing the order back into the <code>sections</code> query param (the renderer already supports arbitrary order).</li>
+            <li>Persist builder state in the URL hash so a composed card can be bookmarked/shared before copying the embed.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;initialTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;default&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;default&quot;,&quot;dark&quot;,&quot;ocean&quot;,&quot;sunset&quot;]},&quot;initialCardEffect&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;glitch&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;shimmer&quot;,&quot;aurora&quot;,&quot;spark&quot;,&quot;wave&quot;,&quot;beam&quot;,&quot;comet&quot;,&quot;rain&quot;,&quot;neon&quot;,&quot;scan&quot;,&quot;confetti&quot;,&quot;matrix&quot;,&quot;glitch&quot;,&quot;ripple&quot;,&quot;spotlight&quot;]}}">
+
+const THEMES = {
+  default: { name: 'default', colors: { background: '#ffffff', foreground: '#24292f', muted: '#57606a', accent: '#0969da', border: '#d0d7de' }, gradient: { from: '#ffffff', to: '#f6f8fa' }, font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", radius: 14 },
+  dark: { name: 'dark', colors: { background: '#0d1117', foreground: '#e6edf3', muted: '#8b949e', accent: '#58a6ff', border: '#30363d' }, gradient: { from: '#161b22', to: '#0d1117' }, font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", radius: 14 },
+  ocean: { name: 'ocean', colors: { background: '#071e2b', foreground: '#e1f5fe', muted: '#90caf9', accent: '#29b6f6', border: '#1565c0' }, gradient: { from: '#0d47a1', to: '#006064' }, font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", radius: 14 },
+  sunset: { name: 'sunset', colors: { background: '#2d1b35', foreground: '#fff3e0', muted: '#ffccbc', accent: '#ff8a65', border: '#ab47bc' }, gradient: { from: '#6a1b9a', to: '#e65100' }, font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", radius: 14 },
+};
+const THEME_NAMES = ['default', 'dark', 'ocean', 'sunset'];
+
+const SKILLS = [
+  { id: 'typescript', label: 'TypeScript', mono: 'TS' }, { id: 'javascript', label: 'JavaScript', mono: 'JS' },
+  { id: 'python', label: 'Python', mono: 'PY' }, { id: 'go', label: 'Go', mono: 'GO' }, { id: 'rust', label: 'Rust', mono: 'RS' },
+  { id: 'react', label: 'React', mono: 'RE' }, { id: 'nextjs', label: 'Next.js', mono: 'NX' }, { id: 'vue', label: 'Vue.js', mono: 'VU' },
+  { id: 'nodejs', label: 'Node.js', mono: 'ND' }, { id: 'hono', label: 'Hono', mono: 'HN' },
+  { id: 'git', label: 'Git', mono: 'GT' }, { id: 'docker', label: 'Docker', mono: 'DK' }, { id: 'npm', label: 'npm', mono: 'NP' },
+  { id: 'pnpm', label: 'pnpm', mono: 'PN' }, { id: 'postgres', label: 'PostgreSQL', mono: 'PG' },
+  { id: 'github', label: 'GitHub', mono: 'GH' }, { id: 'kubernetes', label: 'Kubernetes', mono: 'K8' },
+  { id: 'vercel', label: 'Vercel', mono: 'VC' }, { id: 'cloudflare', label: 'Cloudflare', mono: 'CF' }, { id: 'linux', label: 'Linux', mono: 'LX' },
+];
+const CONTACT_CATALOG = [
+  { id: 'email', label: 'Email', mono: 'EM', placeholder: 'hello@example.com' },
+  { id: 'github', label: 'GitHub', mono: 'GH', placeholder: 'octocat' },
+  { id: 'discord', label: 'Discord', mono: 'DC', placeholder: 'username' },
+  { id: 'x', label: 'X', mono: 'X', placeholder: '@handle' },
+];
+const DONATE_CATALOG = [
+  { id: 'github-sponsors', label: 'GitHub Sponsors', mono: 'GH', placeholder: 'octocat' },
+  { id: 'kofi', label: 'Ko-fi', mono: 'KO', placeholder: 'username' },
+  { id: 'buymeacoffee', label: 'Buy Me a Coffee', mono: 'BC', placeholder: 'username' },
+  { id: 'patreon', label: 'Patreon', mono: 'PT', placeholder: 'username' },
+  { id: 'paypal', label: 'PayPal', mono: 'PP', placeholder: 'username' },
+  { id: 'opencollective', label: 'Open Collective', mono: 'OC', placeholder: 'slug' },
+];
+
+const EFFECT_DESC = {
+  none: 'Static, no motion', pulse: 'Breathing accent ring around the avatar', orbit: 'Accent dots orbiting the avatar',
+  glow: 'Warm radial glow behind the avatar', halo: 'Counter-rotating dashed rings around the avatar',
+  equalizer: 'Bouncing bars beneath the avatar', float: 'Avatar hovering over a drifting shadow',
+  vortex: 'Elliptical arcs spiraling around the avatar', shimmer: 'Diagonal light sweep across the card',
+  aurora: 'Shifting multi-stop gradient atmosphere', spark: 'Twinkling particles across the card',
+  wave: 'Soft undulating ribbon along the base', beam: 'Light beams racing around the card border',
+  comet: 'Comets streaking across the card', rain: 'Accent streaks raining behind the content',
+  neon: 'Flickering neon border glow', scan: 'Retro scanline sweeping down the card', confetti: 'Confetti tumbling down the card',
+  matrix: 'Digital glyph columns streaming behind the content', glitch: 'Chromatic slices snapping sideways',
+  ripple: 'Expanding energy rings across the card', spotlight: 'Broad light cones sweeping the card',
+  radar: 'Rotating scanner sweep inside a section', constellation: 'Connected stars inside a section', grid: 'Perspective energy grid inside a section',
+};
+const BACKGROUND_EFFECTS = ['none', 'aurora', 'matrix'];
+const CARD_EFFECTS = ['none', 'shimmer', 'aurora', 'spark', 'wave', 'beam', 'comet', 'rain', 'neon', 'scan', 'confetti', 'matrix', 'glitch', 'ripple', 'spotlight'];
+const AVATAR_EFFECTS = ['none', 'pulse', 'orbit', 'glow', 'halo', 'equalizer', 'float', 'vortex'];
+const SECTION_EFFECTS = ['none', 'radar', 'constellation', 'grid'];
+
+const CARD_WIDTH = 842;
+const ICONS = {
+  users: 'M10.39 8.61a3.04 3.04 0 1 0-4.78 0A4.76 4.76 0 0 0 2.5 13v.75h11V13a4.76 4.76 0 0 0-3.11-4.39z',
+  repo: 'M4 1.5A1.5 1.5 0 0 0 2.5 3v10.5A1.5 1.5 0 0 0 4 15h.75V1.5zm2.25 0V15h6.25A1.5 1.5 0 0 0 14 13.5V3A1.5 1.5 0 0 0 12.5 1.5z',
+  star: 'M8 1.25l1.94 3.93 4.34.63-3.14 3.06.74 4.32L8 11.15l-3.88 2.04.74-4.32L1.72 5.81l4.34-.63z',
+  activity: 'M9.6 1.5 6.85 8H2.5v1.5h5.15L10.4 3.2 13.15 14.5H16V13h-1.9z',
+};
+const STATS = [
+  { key: 'followers', label: 'Followers', icon: 'users', value: 3204 },
+  { key: 'repositories', label: 'Repositories', icon: 'repo', value: 128 },
+  { key: 'stars', label: 'Stars', icon: 'star', value: 5432 },
+  { key: 'contributions', label: 'Contributions', icon: 'activity', value: 1893 },
+];
+const PROFILE = { login: 'commit-ada', name: 'Ada Novak', bio: 'Building small tools that make big systems calmer.' };
+
+function esc(v) { return String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+function fmt(n) { return n.toLocaleString('en-US'); }
+
+function bgFx(effect, theme, frame, prefix) {
+  const { x, y, width, height } = frame;
+  if (effect === 'aurora' || effect === 'matrix') return atmosphereFx(effect, theme, frame, prefix, 'background');
+  return {};
+}
+function cardFx(effect, theme, frame, prefix) {
+  const { x, y, width, height } = frame;
+  const clip = `clip-path="url(#${prefix}-clip)"`;
+  switch (effect) {
+    case 'aurora': case 'matrix': return atmosphereFx(effect, theme, frame, prefix, 'card');
+    case 'shimmer': {
+      const g = `${prefix}-shimmer`;
+      return {
+        defs: `<linearGradient id="${g}"><stop offset="0%" stop-color="${theme.colors.foreground}" stop-opacity="0"/><stop offset="50%" stop-color="${theme.colors.foreground}" stop-opacity="0.2"/><stop offset="100%" stop-color="${theme.colors.foreground}" stop-opacity="0"/></linearGradient>`,
+        overlay: `<rect x="${x - width}" y="${y}" width="${width}" height="${height}" fill="url(#${g})" ${clip}><animate attributeName="x" values="${x - width};${x + width}" dur="3.2s" repeatCount="indefinite"/></rect>`,
+      };
+    }
+    case 'spark': {
+      const s = Array.from({ length: 12 }, (_, i) => {
+        const sx = x + 28 + ((i * 73) % Math.max(40, width - 56)), sy = y + 22 + ((i * 47) % Math.max(36, height - 44));
+        return `<circle cx="${sx}" cy="${sy}" r="${1.5 + (i % 3) * 0.4}" fill="${i % 2 ? theme.colors.foreground : theme.colors.accent}" opacity="0.15"><animate attributeName="opacity" values="0.15;0.95;0.15" dur="${2.2 + (i % 4) * 0.35}s" begin="${i * 0.13}s" repeatCount="indefinite"/></circle>`;
+      }).join('');
+      return { overlay: `<g ${clip}>${s}</g>` };
+    }
+    case 'wave': {
+      const d1 = `M${x} ${y + height - 30} Q${x + width / 4} ${y + height - 55} ${x + width / 2} ${y + height - 30} T${x + width} ${y + height - 30} V${y + height} H${x} Z`;
+      const d2 = `M${x} ${y + height - 30} Q${x + width / 4} ${y + height - 5} ${x + width / 2} ${y + height - 30} T${x + width} ${y + height - 30} V${y + height} H${x} Z`;
+      return { overlay: `<path ${clip} fill="${theme.colors.accent}" fill-opacity="0.2" d="${d1}"><animate attributeName="d" values="${d1};${d2};${d1}" dur="4.5s" repeatCount="indefinite"/></path>` };
+    }
+    case 'beam':
+      return { overlay: `<rect x="${x + 1}" y="${y + 1}" width="${width - 2}" height="${height - 2}" rx="${theme.radius}" fill="none" stroke="${theme.colors.accent}" stroke-width="3" stroke-linecap="round" stroke-dasharray="90 260"><animate attributeName="stroke-dashoffset" values="0;-700" dur="7s" repeatCount="indefinite"/></rect>` };
+    case 'comet': {
+      const c = [0.18, 0.48, 0.76].map((r, i) => `<g opacity="0"><line x1="${x - 60}" y1="${y + height * r - 8}" x2="${x}" y2="${y + height * r}" stroke="${theme.colors.accent}" stroke-width="${4 - i}"/><circle cx="${x}" cy="${y + height * r}" r="${3 - i * 0.5}" fill="${theme.colors.accent}"/><animateTransform attributeName="transform" type="translate" values="0 0;${width + 100} ${height * 0.12}" dur="${4 + i * 0.9}s" begin="${i * 1.2}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" dur="${4 + i * 0.9}s" begin="${i * 1.2}s" repeatCount="indefinite"/></g>`).join('');
+      return { overlay: `<g ${clip}>${c}</g>` };
+    }
+    case 'rain': {
+      const d = Array.from({ length: 10 }, (_, i) => { const dx = x + 30 + (i * (width - 60)) / 9; return `<line x1="${dx}" y1="${y - 20}" x2="${dx}" y2="${y - 4}" stroke="${theme.colors.accent}" stroke-width="2"><animateTransform attributeName="transform" type="translate" values="0 0;0 ${height + 40}" dur="${2.1 + (i % 4) * 0.25}s" begin="${i * 0.18}s" repeatCount="indefinite"/></line>`; }).join('');
+      return { overlay: `<g ${clip}>${d}</g>` };
+    }
+    case 'neon':
+      return { overlay: `<g fill="none" stroke="${theme.colors.accent}"><rect x="${x + 1}" y="${y + 1}" width="${width - 2}" height="${height - 2}" rx="${theme.radius}" stroke-width="7" opacity="0.16"><animate attributeName="opacity" values="0.1;0.32;0.12;0.28;0.1" dur="3s" repeatCount="indefinite"/></rect><rect x="${x + 1}" y="${y + 1}" width="${width - 2}" height="${height - 2}" rx="${theme.radius}" stroke-width="2"><animate attributeName="opacity" values="1;0.35;1;0.4;1" dur="3s" repeatCount="indefinite"/></rect></g>` };
+    case 'scan':
+      return { overlay: `<g ${clip}><rect x="${x}" y="${y - 34}" width="${width}" height="34" fill="${theme.colors.foreground}" opacity="0.12"><animate attributeName="y" values="${y - 34};${y + height}" dur="3.8s" repeatCount="indefinite"/></rect></g>` };
+    case 'confetti': {
+      const p = Array.from({ length: 12 }, (_, i) => { const px = x + 24 + ((i * 67) % Math.max(40, width - 48)); return `<rect x="${px}" y="${y - 12}" width="5" height="9" rx="1" fill="${i % 3 === 0 ? theme.colors.foreground : theme.colors.accent}"><animateTransform attributeName="transform" type="translate" values="0 0;${i % 2 ? 18 : -18} ${height + 24}" dur="${4 + (i % 5) * 0.35}s" begin="${i * 0.22}s" repeatCount="indefinite"/></rect>`; }).join('');
+      return { overlay: `<g ${clip}>${p}</g>` };
+    }
+    case 'glitch': {
+      const s = Array.from({ length: 7 }, (_, i) => { const gy = y + 18 + (i * (height - 36)) / 6; return `<rect x="${x}" y="${gy}" width="${width}" height="${4 + (i % 3) * 2}" fill="${i % 2 ? theme.colors.foreground : theme.colors.accent}" opacity="0"><animate attributeName="x" values="${x};${x + (i % 2 ? -22 : 22)};${x}" dur="3.6s" begin="${i * 0.06}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0;0.32;0" keyTimes="0;0.76;0.82;1" dur="3.6s" begin="${i * 0.06}s" repeatCount="indefinite"/></rect>`; }).join('');
+      return { overlay: `<g ${clip}>${s}</g>` };
+    }
+    case 'ripple': {
+      const c = [0.25, 0.55, 0.82].map((r, i) => `<circle cx="${x + width * r}" cy="${y + height * (i % 2 ? 0.7 : 0.3)}" r="4" fill="none" stroke="${theme.colors.accent}" opacity="0"><animate attributeName="r" values="4;${Math.max(width, height) * 0.32}" dur="4.2s" begin="${i * 1.4}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.55;0" dur="4.2s" begin="${i * 1.4}s" repeatCount="indefinite"/></circle>`).join('');
+      return { overlay: `<g ${clip}>${c}</g>` };
+    }
+    case 'spotlight':
+      return { overlay: `<g ${clip}><polygon points="${x - width * 0.4},${y} ${x - width * 0.2},${y} ${x + width * 0.1},${y + height} ${x - width * 0.2},${y + height}" fill="${theme.colors.foreground}" opacity="0.12"><animateTransform attributeName="transform" type="translate" values="0 0;${width * 1.5} 0;0 0" dur="7s" repeatCount="indefinite"/></polygon></g>` };
+    default: return {};
+  }
+}
+function atmosphereFx(effect, theme, frame, prefix, scope) {
+  const { x, y, width, height } = frame;
+  const clip = `clip-path="url(#${prefix}-clip)"`;
+  if (effect === 'aurora') {
+    const g = `${prefix}-${scope}-aurora`;
+    return {
+      defs: `<linearGradient id="${g}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${theme.gradient.from}"><animate attributeName="stop-color" values="${theme.gradient.from};${theme.colors.accent};${theme.gradient.to};${theme.gradient.from}" dur="8s" repeatCount="indefinite"/></stop><stop offset="100%" stop-color="${theme.gradient.to}"><animate attributeName="stop-color" values="${theme.gradient.to};${theme.gradient.from};${theme.colors.accent};${theme.gradient.to}" dur="8s" repeatCount="indefinite"/></stop></linearGradient>`,
+      underlay: `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="url(#${g})" ${clip}/>`,
+    };
+  }
+  const streams = Array.from({ length: 10 }, (_, i) => { const mx = x + 24 + (i * (width - 48)) / 9; return `<text x="${mx}" y="${y - 60}" font-family="monospace" font-size="10" fill="${theme.colors.accent}" opacity="0.35">01101001<animate attributeName="y" values="${y - 60};${y + height + 40}" dur="${3.8 + (i % 4) * 0.5}s" begin="${i * 0.2}s" repeatCount="indefinite"/></text>`; }).join('');
+  return { underlay: `<g ${clip}>${streams}</g>` };
+}
+function avatarFx(effect, theme, avatar, frame) {
+  const { cx, cy, radius } = avatar;
+  const maxY = frame.y + frame.height - 10;
+  switch (effect) {
+    case 'pulse':
+      return { underlay: `<g><circle cx="${cx}" cy="${cy}" r="${radius + 4}" fill="none" stroke="${theme.colors.accent}" stroke-opacity="0.55" stroke-width="2"><animate attributeName="r" values="${radius + 4};${radius + 12};${radius + 4}" dur="2.4s" repeatCount="indefinite"/><animate attributeName="stroke-opacity" values="0.55;0.12;0.55" dur="2.4s" repeatCount="indefinite"/></circle><circle cx="${cx}" cy="${cy}" r="${radius + 10}" fill="none" stroke="${theme.colors.accent}" stroke-opacity="0.28"><animate attributeName="r" values="${radius + 10};${radius + 20};${radius + 10}" dur="2.4s" begin="0.35s" repeatCount="indefinite"/></circle></g>` };
+    case 'orbit':
+      return { underlay: `<g transform="translate(${cx} ${cy})"><g><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="7s" repeatCount="indefinite"/><circle cy="-${radius + 16}" r="4.5" fill="${theme.colors.accent}"/><circle cx="${radius + 4}" cy="40" r="3" fill="${theme.colors.accent}" fill-opacity="0.75"/><circle cx="-${radius + 4}" cy="40" r="3" fill="${theme.colors.accent}" fill-opacity="0.75"/></g></g>` };
+    case 'glow': {
+      const id = `av-glow-${cx}-${cy}`;
+      return { defs: `<radialGradient id="${id}"><stop offset="0%" stop-color="${theme.colors.accent}" stop-opacity="0.6"><animate attributeName="stop-opacity" values="0.35;0.7;0.35" dur="2.8s" repeatCount="indefinite"/></stop><stop offset="100%" stop-color="${theme.colors.accent}" stop-opacity="0"/></radialGradient>`, underlay: `<circle cx="${cx}" cy="${cy}" r="${radius + 28}" fill="url(#${id})"/>` };
+    }
+    case 'halo':
+      return { underlay: `<g fill="none"><circle cx="${cx}" cy="${cy}" r="${radius + 11}" stroke="${theme.colors.accent}" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="4 12"><animateTransform attributeName="transform" type="rotate" from="0 ${cx} ${cy}" to="360 ${cx} ${cy}" dur="10s" repeatCount="indefinite"/></circle><circle cx="${cx}" cy="${cy}" r="${radius + 18}" stroke="${theme.colors.accent}" stroke-opacity="0.3" stroke-dasharray="2 10"><animateTransform attributeName="transform" type="rotate" from="360 ${cx} ${cy}" to="0 ${cx} ${cy}" dur="16s" repeatCount="indefinite"/></circle></g>` };
+    case 'equalizer': {
+      const base = Math.min(cy + radius + 30, maxY);
+      const bars = Array.from({ length: 9 }, (_, i) => { const bx = cx - 43 + i * 10, first = 5 + (i % 4) * 2.4; return `<rect x="${bx}" y="${base - first}" width="6" height="${first}" rx="2" fill="${theme.colors.accent}"><animate attributeName="height" values="${first};${first + 10};${first + 3};${first}" dur="${1.05 + (i % 5) * 0.1}s" begin="${i * 0.08}s" repeatCount="indefinite"/><animate attributeName="y" values="${base - first};${base - first - 10};${base - first - 3};${base - first}" dur="${1.05 + (i % 5) * 0.1}s" begin="${i * 0.08}s" repeatCount="indefinite"/></rect>`; }).join('');
+      return { underlay: `<g>${bars}</g>` };
+    }
+    case 'float': {
+      const sy = Math.min(cy + radius + 16, maxY);
+      return { underlay: `<ellipse cx="${cx}" cy="${sy}" rx="34" ry="5" fill="${theme.colors.foreground}" opacity="0.14"><animate attributeName="rx" values="34;29;34;38;34" dur="5s" repeatCount="indefinite"/></ellipse>`, contentAnimation: `<animateTransform attributeName="transform" type="translate" values="0 0;0 -6;0 0;0 5;0 0" keyTimes="0;0.25;0.5;0.75;1" dur="5s" repeatCount="indefinite"/>` };
+    }
+    case 'vortex':
+      return { underlay: `<g transform="translate(${cx} ${cy})" fill="none" stroke="${theme.colors.accent}" stroke-linecap="round"><ellipse rx="${radius + 18}" ry="24" stroke-width="2" stroke-opacity="0.7" stroke-dasharray="34 18"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="5s" repeatCount="indefinite"/></ellipse><ellipse rx="${radius + 18}" ry="36" stroke-opacity="0.4" stroke-dasharray="18 14"><animateTransform attributeName="transform" type="rotate" from="120" to="-240" dur="8s" repeatCount="indefinite"/></ellipse></g>` };
+    default: return {};
+  }
+}
+function sectionFx(effect, theme, frame, clipId) {
+  const { x, y, width, height } = frame;
+  const clip = `clip-path="url(#${clipId})"`;
+  switch (effect) {
+    case 'radar': {
+      const r = Math.min(60, height * 0.42), cx = x + width - r - 24, cy = y + height / 2;
+      return { underlay: `<g ${clip} fill="none" stroke="${theme.colors.accent}" transform="translate(${cx} ${cy})"><circle r="${r}" stroke-opacity="0.16"/><circle r="${r * 0.66}" stroke-opacity="0.2"/><circle r="${r * 0.33}" stroke-opacity="0.24"/><path d="M0 0 L${r} 0 A${r} ${r} 0 0 1 ${r * 0.7} ${r * 0.7} Z" fill="${theme.colors.accent}" fill-opacity="0.16" stroke="none"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="5s" repeatCount="indefinite"/></path></g>` };
+    }
+    case 'constellation': {
+      const nodes = Array.from({ length: 9 }, (_, i) => ({ x: x + 24 + ((i * 79) % Math.max(40, width - 48)), y: y + 16 + ((i * 41) % Math.max(28, height - 32)) }));
+      const lines = nodes.slice(1).map((n, i) => `<line x1="${nodes[i].x}" y1="${nodes[i].y}" x2="${n.x}" y2="${n.y}"/>`).join('');
+      const stars = nodes.map((n, i) => `<circle cx="${n.x}" cy="${n.y}" r="${i % 3 ? 2 : 3}" fill="${theme.colors.accent}" stroke="none"><animate attributeName="opacity" values="0.25;0.95;0.25" dur="${2.2 + (i % 4) * 0.4}s" begin="${i * 0.16}s" repeatCount="indefinite"/></circle>`).join('');
+      return { underlay: `<g ${clip} stroke="${theme.colors.accent}" stroke-opacity="0.18">${lines}${stars}</g>` };
+    }
+    case 'grid': {
+      const v = Array.from({ length: 9 }, (_, i) => { const gx = x + (i * width) / 8; return `<line x1="${gx}" y1="${y + height}" x2="${x + width / 2 + (gx - x - width / 2) * 0.22}" y2="${y}"/>`; }).join('');
+      const h = Array.from({ length: 5 }, (_, i) => { const gy = y + (i * height) / 4; return `<line x1="${x}" y1="${gy}" x2="${x + width}" y2="${gy}"><animate attributeName="opacity" values="0.12;0.55;0.12" dur="2.8s" begin="${i * 0.18}s" repeatCount="indefinite"/></line>`; }).join('');
+      return { underlay: `<g ${clip} stroke="${theme.colors.accent}" stroke-opacity="0.2">${v}${h}</g>` };
+    }
+    default: return {};
+  }
+}
+
+class Component extends DCLogic {
+  state = {
+    sections: { profile: true, stats: true, skills: true, contact: true, donate: false },
+    username: PROFILE.login,
+    skills: new Set(['typescript', 'react', 'nodejs', 'docker', 'github']),
+    labels: true,
+    contact: { email: { on: true, value: 'hello@example.com' }, github: { on: true, value: 'octocat' }, discord: { on: false, value: '' }, x: { on: false, value: '' } },
+    donate: { 'github-sponsors': { on: true, value: 'octocat' }, kofi: { on: false, value: '' }, buymeacoffee: { on: false, value: '' }, patreon: { on: false, value: '' }, paypal: { on: false, value: '' }, opencollective: { on: false, value: '' } },
+    theme: this.props.initialTheme || 'default',
+    effects: { background: 'none', card: this.props.initialCardEffect || 'shimmer', avatar: 'pulse', stats: 'none', skills: 'grid', contact: 'none', donate: 'none' },
+    copied: false,
+  };
+
+  componentDidMount() { this.updatePreview(); }
+  componentDidUpdate() { this.updatePreview(); }
+
+  updatePreview() {
+    if (!this.previewRef) return;
+    const svg = this.buildSvg();
+    this.previewRef.innerHTML = svg;
+    const el = this.previewRef.querySelector('svg');
+    if (el) { el.style.width = '100%'; el.style.height = 'auto'; el.style.display = 'block'; el.style.filter = 'drop-shadow(0 16px 30px rgba(20,20,30,0.16))'; }
+  }
+
+  toggleSection(id) {
+    this.setState((s) => {
+      const on = s.sections[id];
+      const activeCount = Object.values(s.sections).filter(Boolean).length;
+      if (on && activeCount === 1) return s;
+      return { sections: { ...s.sections, [id]: !on } };
+    });
+  }
+  toggleSkill(id) {
+    this.setState((s) => { const next = new Set(s.skills); if (next.has(id)) next.delete(id); else if (next.size < 20) next.add(id); return { skills: next }; });
+  }
+  setContactField(id, patch) { this.setState((s) => ({ contact: { ...s.contact, [id]: { ...s.contact[id], ...patch } } })); }
+  setDonateField(id, patch) { this.setState((s) => ({ donate: { ...s.donate, [id]: { ...s.donate[id], ...patch } } })); }
+
+  buildSvg() {
+    const theme = THEMES[this.state.theme];
+    const activeSkills = SKILLS.filter((s) => this.state.skills.has(s.id));
+    const contactLinks = CONTACT_CATALOG.filter((c) => this.state.contact[c.id].on && this.state.contact[c.id].value.trim());
+    const donateLinks = DONATE_CATALOG.filter((d) => this.state.donate[d.id].on && this.state.donate[d.id].value.trim());
+    const order = ['profile', 'stats', 'skills', 'contact', 'donate'].filter((id) => {
+      if (id === 'contact') return this.state.sections.contact && contactLinks.length;
+      if (id === 'donate') return this.state.sections.donate && donateLinks.length;
+      if (id === 'skills') return this.state.sections.skills && activeSkills.length;
+      return this.state.sections[id];
+    });
+    if (order.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="80"><rect width="${CARD_WIDTH}" height="80" rx="14" fill="${theme.colors.background}" stroke="${theme.colors.border}"/><text x="24" y="45" font-family="${theme.font}" font-size="14" fill="${theme.colors.muted}">Turn on a section, or fill in a contact/donate value, to see the card.</text></svg>`;
+
+    const paired = order[0] === 'profile' && order[1] === 'stats';
+    let cursor = 0;
+    const heights = { profile: paired ? 122 : 214, stats: 100 };
+    const laid = order.map((id) => {
+      let h = heights[id];
+      if (id === 'skills') h = skillsHeight(activeSkills.length, this.state.labels);
+      if (id === 'contact') h = linksHeight(contactLinks.length);
+      if (id === 'donate') h = linksHeight(donateLinks.length);
+      const frame = { x: 0, y: cursor, width: CARD_WIDTH, height: h };
+      cursor += h;
+      return { id, frame };
+    });
+    const totalHeight = cursor;
+    const cardFrame = { x: 0, y: 0, width: CARD_WIDTH, height: totalHeight };
+    const prefix = `deco-${theme.name}`;
+
+    const bg = bgFx(this.state.effects.background, theme, cardFrame, prefix + '-bg');
+    const card = cardFx(this.state.effects.card, theme, cardFrame, prefix + '-card');
+    let defs = `<linearGradient id="${prefix}-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${theme.gradient.from}"/><stop offset="100%" stop-color="${theme.gradient.to}"/></linearGradient>` +
+      `<clipPath id="${prefix}-bg-clip"><rect width="${CARD_WIDTH}" height="${totalHeight}" rx="${theme.radius}"/></clipPath>` +
+      `<clipPath id="${prefix}-card-clip"><rect width="${CARD_WIDTH}" height="${totalHeight}" rx="${theme.radius}"/></clipPath>` +
+      (bg.defs || '') + (card.defs || '');
+
+    const sectionGroups = laid.map(({ id, frame }, idx) => {
+      const clipId = `${prefix}-${id}-clip`;
+      const fxName = id === 'profile' ? 'none' : this.state.effects[id] || 'none';
+      const fx = sectionFx(fxName, theme, frame, clipId);
+      if (fx.underlay) defs += `<clipPath id="${clipId}"><rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}"/></clipPath>`;
+      let content = '';
+      let avatarLayer = '';
+      if (id === 'profile') {
+        const avatar = { cx: 108, cy: frame.y + 106, radius: 64 };
+        const avFx = avatarFx(this.state.effects.avatar, theme, avatar, frame);
+        if (avFx.defs) defs += avFx.defs;
+        content = renderProfile(theme, PROFILE, this.state.username, frame, avatar, avFx.contentAnimation || '');
+        avatarLayer = avFx.underlay || '';
+      } else if (id === 'stats') {
+        content = renderStats(theme, frame, paired);
+      } else if (id === 'skills') {
+        content = renderSkills(theme, frame, activeSkills, this.state.labels);
+      } else if (id === 'contact') {
+        content = renderLinks(theme, frame, 'Contact', contactLinks);
+      } else if (id === 'donate') {
+        content = renderLinks(theme, frame, 'Support My Work', donateLinks);
+      }
+      const divider = idx > 0 ? `<line x1="20" y1="${frame.y}" x2="${CARD_WIDTH - 20}" y2="${frame.y}" stroke="${theme.colors.border}" stroke-opacity="0.6"/>` : '';
+      return `${divider}${fx.underlay || ''}${avatarLayer}${content}`;
+    }).join('');
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${totalHeight}" viewBox="0 0 ${CARD_WIDTH} ${totalHeight}" role="img">
+<defs>${defs}</defs>
+<rect x="0.5" y="0.5" width="${CARD_WIDTH - 1}" height="${totalHeight - 1}" rx="${theme.radius}" fill="url(#${prefix}-grad)" stroke="${theme.colors.border}"/>
+${bg.underlay || ''}${card.underlay || ''}
+${sectionGroups}
+${card.overlay || ''}
+</svg>`;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const theme = THEMES[s.theme];
+    const activeSkills = SKILLS.filter((sk) => s.skills.has(sk.id));
+    const contactLinks = CONTACT_CATALOG.filter((c) => s.contact[c.id].on && s.contact[c.id].value.trim());
+    const donateLinks = DONATE_CATALOG.filter((d) => s.donate[d.id].on && s.donate[d.id].value.trim());
+
+    const sectionMeta = [
+      { id: 'profile', label: 'Profile', dot: theme.colors.accent },
+      { id: 'stats', label: 'Stats', dot: theme.colors.accent },
+      { id: 'skills', label: 'Skills', dot: theme.colors.accent },
+      { id: 'contact', label: 'Contact', dot: theme.colors.accent },
+      { id: 'donate', label: 'Donate', dot: theme.colors.accent },
+    ];
+    const sections = sectionMeta.map((m) => ({
+      id: m.id, label: m.label, on: s.sections[m.id],
+      dotColor: s.sections[m.id] ? 'oklch(0.5 0.16 275)' : 'oklch(0.85 0.006 250)',
+      toggle: () => this.toggleSection(m.id),
+    }));
+
+    const skills = SKILLS.map((sk) => {
+      const on = s.skills.has(sk.id);
+      return {
+        id: sk.id, label: sk.label, mono: sk.mono,
+        bg: on ? 'oklch(0.5 0.16 275)' : 'white', fg: on ? 'white' : 'oklch(0.3 0.01 260)',
+        borderColor: on ? 'oklch(0.5 0.16 275)' : 'oklch(0.88 0.006 250)',
+        toggle: () => this.toggleSkill(sk.id),
+      };
+    });
+
+    const buildRows = (catalog, stateMap, setter) => catalog.map((c) => {
+      const row = stateMap[c.id];
+      return {
+        id: c.id, label: c.label, mono: c.mono, on: row.on, value: row.value, placeholder: c.placeholder,
+        chipBg: row.on ? 'oklch(0.5 0.16 275)' : 'white', chipFg: row.on ? 'white' : 'oklch(0.4 0.01 260)',
+        chipBorder: row.on ? 'oklch(0.5 0.16 275)' : 'oklch(0.88 0.006 250)',
+        toggle: () => setter(c.id, { on: !row.on }),
+        setValue: (e) => setter(c.id, { value: e.target.value }),
+      };
+    });
+
+    const themes = THEME_NAMES.map((name) => {
+      const t = THEMES[name];
+      return { name, from: t.gradient.from, to: t.gradient.to, border: t.colors.border, ring: s.theme === name ? 'oklch(0.5 0.16 275)' : 'oklch(0.9 0.006 250)', select: () => this.setState({ theme: name }) };
+    });
+
+    const chip = (name, current, onSelect) => ({
+      name, label: name === 'none' ? 'None' : name.charAt(0).toUpperCase() + name.slice(1), desc: EFFECT_DESC[name],
+      bg: current === name ? 'oklch(0.5 0.16 275)' : 'white', fg: current === name ? 'white' : 'oklch(0.35 0.01 260)',
+      border: current === name ? 'oklch(0.5 0.16 275)' : 'oklch(0.88 0.006 250)', select: onSelect,
+    });
+
+    const sectionEffectGroups = [
+      { id: 'stats', label: 'Stats' }, { id: 'skills', label: 'Skills' }, { id: 'contact', label: 'Contact' }, { id: 'donate', label: 'Donate' },
+    ].filter((g) => s.sections[g.id]).map((g) => ({
+      label: g.label,
+      options: SECTION_EFFECTS.map((name) => chip(name, s.effects[g.id], () => this.setState((st) => ({ effects: { ...st.effects, [g.id]: name } })))),
+    }));
+
+    const markdownParams = [];
+    markdownParams.push('sections=' + Object.keys(s.sections).filter((k) => s.sections[k]).join(','));
+    if (s.sections.profile || s.sections.stats) markdownParams.push('username=' + (s.username || 'octocat'));
+    if (s.sections.skills) { markdownParams.push('skills=' + (activeSkills.map((sk) => sk.id).join(',') || 'typescript')); if (!s.labels) markdownParams.push('labels=false'); }
+    if (contactLinks.length) markdownParams.push('contact=' + contactLinks.map((c) => `${c.id}:${s.contact[c.id].value.trim()}`).join(','));
+    if (donateLinks.length) markdownParams.push('donate=' + donateLinks.map((d) => `${d.id}:${s.donate[d.id].value.trim()}`).join(','));
+    if (s.theme !== 'default') markdownParams.push('theme=' + s.theme);
+    const fx = [];
+    if (s.effects.background !== 'none') fx.push('background:' + s.effects.background);
+    if (s.effects.card !== 'none') fx.push('card:' + s.effects.card);
+    if (s.sections.profile && s.effects.avatar !== 'none') fx.push('avatar:' + s.effects.avatar);
+    for (const k of ['stats', 'skills', 'contact', 'donate']) if (s.sections[k] && s.effects[k] !== 'none') fx.push(k + ':' + s.effects[k]);
+    if (fx.length) markdownParams.push('effects=' + fx.join(','));
+    const markdown = `![GitHub card](https://your-deployment.example/api/card?${markdownParams.join('&')})`;
+
+    return {
+      sections, showUsername: s.sections.profile || s.sections.stats,
+      username: s.username, setUsername: (e) => this.setState({ username: e.target.value.trim().toLowerCase() }),
+      showSkills: s.sections.skills, skillCount: s.skills.size, skills,
+      labelsToggleText: s.labels ? 'Hide labels' : 'Show labels', toggleLabels: () => this.setState((st) => ({ labels: !st.labels })),
+      showContact: s.sections.contact, contactRows: buildRows(CONTACT_CATALOG, s.contact, (id, patch) => this.setContactField(id, patch)), contactEmpty: contactLinks.length === 0,
+      showDonate: s.sections.donate, donateRows: buildRows(DONATE_CATALOG, s.donate, (id, patch) => this.setDonateField(id, patch)), donateEmpty: donateLinks.length === 0,
+      themes,
+      backgroundEffects: BACKGROUND_EFFECTS.map((n) => chip(n, s.effects.background, () => this.setState((st) => ({ effects: { ...st.effects, background: n } })))),
+      cardEffects: CARD_EFFECTS.map((n) => chip(n, s.effects.card, () => this.setState((st) => ({ effects: { ...st.effects, card: n } })))),
+      showAvatarEffects: s.sections.profile,
+      avatarEffects: AVATAR_EFFECTS.map((n) => chip(n, s.effects.avatar, () => this.setState((st) => ({ effects: { ...st.effects, avatar: n } })))),
+      sectionEffectGroups,
+      previewRef: (el) => { this.previewRef = el; },
+      markdown, copyLabel: s.copied ? 'Copied' : 'Copy',
+      copyMarkdown: () => { navigator.clipboard.writeText(markdown); this.setState({ copied: true }); setTimeout(() => this.setState({ copied: false }), 1200); },
+    };
+  }
+}
+
+function skillsHeight(count, labels) {
+  const columns = Math.min(5, Math.max(1, Math.ceil(Math.sqrt(Math.max(1, count)))));
+  const rows = Math.ceil(Math.max(1, count) / columns);
+  const cellHeight = labels ? 74 : 60;
+  return 48 + rows * cellHeight + Math.max(0, rows - 1) * 12 + 22;
+}
+function linksHeight(count) {
+  const rows = Math.ceil(Math.max(1, count) / 2);
+  return 48 + rows * 66 + Math.max(0, rows - 1) * 12 + 22;
+}
+
+function renderProfile(theme, profile, username, frame, avatar, contentAnimation) {
+  const { cx, cy, radius } = avatar;
+  const initials = (profile.name || username).split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const clip = `av-clip-${cy}`;
+  return `<defs><clipPath id="${clip}"><circle cx="${cx}" cy="${cy}" r="${radius}"/></clipPath></defs>
+<g>${contentAnimation}
+  <circle cx="${cx}" cy="${cy}" r="${radius + 3}" fill="${theme.colors.background}" stroke="${theme.colors.accent}" stroke-width="2.5" stroke-opacity="0.85"/>
+  <circle cx="${cx}" cy="${cy}" r="${radius}" fill="${theme.colors.accent}" fill-opacity="0.22" clip-path="url(#${clip})"/>
+  <text x="${cx}" y="${cy + 8}" text-anchor="middle" font-family="${theme.font}" font-size="30" font-weight="700" fill="${theme.colors.accent}">${esc(initials)}</text>
+</g>
+<text x="196" y="${frame.y + 46}" font-family="${theme.font}" font-size="23" font-weight="700" fill="${theme.colors.foreground}">${esc(profile.name)}</text>
+<text x="196" y="${frame.y + 68}" font-family="${theme.font}" font-size="13.5" fill="${theme.colors.accent}">@${esc(username || profile.login)}</text>
+<text x="196" y="${frame.y + 100}" font-family="${theme.font}" font-size="13.5" fill="${theme.colors.muted}">${esc(profile.bio)}</text>`;
+}
+
+function badge(theme, x, y, size, path) {
+  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${size * 0.28}" fill="${theme.colors.accent}" fill-opacity="0.14"/>
+  <g transform="translate(${x + size * 0.24} ${y + size * 0.24}) scale(${(size * 0.52) / 16})"><path d="${path}" fill="${theme.colors.accent}"/></g>`;
+}
+
+function renderStats(theme, frame, paired) {
+  const pad = 22, gap = 14, h = 76;
+  const cellW = paired ? 138 : (frame.width - pad * 2 - gap * 3) / 4;
+  const startX = paired ? 196 : pad;
+  const step = paired ? 152 : cellW + gap;
+  const y = frame.y + (paired ? 12 : 12);
+  return STATS.map((stat, i) => {
+    const x = startX + i * step;
+    return `<g>
+    <rect x="${x}" y="${y}" width="${cellW}" height="${h}" rx="12" fill="${theme.colors.background}" fill-opacity="0.8" stroke="${theme.colors.border}"/>
+    ${badge(theme, x + 12, y + 12, 28, ICONS[stat.icon])}
+    <text x="${x + 50}" y="${y + 30}" font-family="${theme.font}" font-size="18" font-weight="700" fill="${theme.colors.foreground}">${fmt(stat.value)}</text>
+    <text x="${x + 50}" y="${y + 50}" font-family="${theme.font}" font-size="10.5" letter-spacing="0.03em" fill="${theme.colors.muted}">${stat.label.toUpperCase()}</text>
+  </g>`;
+  }).join('');
+}
+
+function renderSkills(theme, frame, skills, labels) {
+  const pad = 22, gap = 12, titleH = 46;
+  const columns = Math.min(5, Math.max(1, Math.ceil(Math.sqrt(Math.max(1, skills.length)))));
+  const cellW = (frame.width - pad * 2 - gap * (columns - 1)) / columns;
+  const cellH = labels ? 74 : 60;
+  const groups = skills.map((sk, i) => {
+    const col = i % columns, row = Math.floor(i / columns);
+    const x = pad + col * (cellW + gap), y = frame.y + titleH + row * (cellH + gap);
+    const size = 34;
+    const iconX = labels ? x + 14 : x + (cellW - size) / 2;
+    const iconY = labels ? y + (cellH - size) / 2 : y + (cellH - size) / 2;
+    const label = labels ? `<text x="${iconX + size + 12}" y="${y + cellH / 2 + 5}" font-family="${theme.font}" font-size="13.5" font-weight="600" fill="${theme.colors.foreground}">${esc(sk.label)}</text>` : '';
+    return `<g>
+    <rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="10" fill="${theme.colors.background}" fill-opacity="0.75" stroke="${theme.colors.border}"/>
+    <rect x="${iconX}" y="${iconY}" width="${size}" height="${size}" rx="9" fill="${theme.colors.accent}" fill-opacity="0.14"/>
+    <text x="${iconX + size / 2}" y="${iconY + size / 2 + 5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="${theme.colors.accent}">${sk.mono}</text>
+    ${label}
+  </g>`;
+  }).join('');
+  return `<text x="${pad}" y="${frame.y + 30}" font-family="${theme.font}" font-size="17" font-weight="700" fill="${theme.colors.foreground}">Skills</text>${groups}`;
+}
+
+function renderLinks(theme, frame, title, links) {
+  const pad = 22, gap = 12, titleH = 46, cellH = 66, columns = 2;
+  const cellW = (frame.width - pad * 2 - gap) / columns;
+  const groups = links.map((link, i) => {
+    const col = i % columns, row = Math.floor(i / columns);
+    const x = pad + col * (cellW + gap), y = frame.y + titleH + row * (cellH + gap);
+    const size = 30;
+    return `<g>
+    <rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="10" fill="${theme.colors.background}" fill-opacity="0.75" stroke="${theme.colors.border}"/>
+    <rect x="${x + 14}" y="${y + (cellH - size) / 2}" width="${size}" height="${size}" rx="8" fill="${theme.colors.accent}" fill-opacity="0.14"/>
+    <text x="${x + 14 + size / 2}" y="${y + (cellH - size) / 2 + size / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10.5" font-weight="700" fill="${theme.colors.accent}">${link.mono}</text>
+    <text x="${x + 56}" y="${y + cellH / 2 - 5}" font-family="${theme.font}" font-size="12.5" font-weight="700" fill="${theme.colors.foreground}">${esc(link.label)}</text>
+    <text x="${x + 56}" y="${y + cellH / 2 + 14}" font-family="${theme.font}" font-size="11.5" fill="${theme.colors.muted}">${esc(link.value.length > 26 ? link.value.slice(0, 25) + '…' : link.value)}</text>
+  </g>`;
+  }).join('');
+  return `<text x="${pad}" y="${frame.y + 30}" font-family="${theme.font}" font-size="17" font-weight="700" fill="${theme.colors.foreground}">${esc(title)}</text>${groups}`;
+}
+
+</script>
+</body>
+</html>

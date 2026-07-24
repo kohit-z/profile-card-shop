@@ -15,8 +15,18 @@ describe('application smoke tests', () => {
     expect(response.headers.get('content-type')).toContain('text/html')
     expect(body).toContain('GitHub Deco')
     expect(body).toContain('id="playground"')
+    expect(body).toContain('id="clear-skills"')
+    expect(body).toContain('id="giphy-picker"')
+    expect(body).toContain('id="banner-giphy-picker"')
+    expect(body).toContain('params.set("bannerGiphy", state.bannerGiphy)')
+    expect(body).toContain('state.contact.github.value = linkedUsername')
+    expect(body).toContain('state.donate["github-sponsors"].value = linkedUsername')
+    expect(body).toContain('/api/giphy/search')
     expect(body).toContain('/api/profile')
     expect(body).toContain('/api/skills')
+    expect(body).not.toContain('Icon border')
+    expect(body).not.toContain('icon-border-select')
+    expect(body).not.toContain('iconBorder')
   })
 
   it('returns service metadata from the meta endpoint', async () => {
@@ -44,18 +54,28 @@ describe('application smoke tests', () => {
           path: '/meta',
           status: 'available',
         },
+        card: {
+          method: 'GET',
+          path: '/api/card?sections=<section,section>&username=<name>&skills=<skill,skill>&contact=<platform:value>&donate=<platform:value>&giphy=<search-or-id>&bannerGiphy=<search-or-id>&effects=<scope:name>',
+          status: 'available',
+        },
+        giphySearch: {
+          method: 'GET',
+          path: '/api/giphy/search?q=<keywords>&limit=<1-16>',
+          status: 'available',
+        },
         profile: {
           method: 'GET',
-          path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>',
+          path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>&bannerGiphy=<search-or-id>',
           status: 'available',
         },
         skills: {
           method: 'GET',
-          path: '/api/skills?skills=<skill,skill>&theme=<theme>&labels=true',
+          path: '/api/skills?skills=<skill,skill>&theme=<theme>&labels=true&iconTheme=<theme>',
           status: 'available',
         },
       },
-      themes: ['default', 'dark', 'ocean', 'sunset'],
+      themes: ['default', 'nebula'],
       effects: [
         'none',
         'pulse',
@@ -86,6 +106,9 @@ describe('application smoke tests', () => {
     })
     expect(body.skills).toContain('typescript')
     expect(body.skills).toContain('nodejs')
+    expect(body.skills).toContain('react')
+    expect(body.skills).toContain('golang')
+    expect(body).not.toHaveProperty('skillIconBorders')
   })
 
   it('returns the health response as JSON', async () => {

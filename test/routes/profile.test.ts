@@ -3,6 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import app from '../../src/index'
 
 const originalToken = process.env.GITHUB_TOKEN
+const originalGiphyKey = process.env.GIPHY_API_KEY
+
+const activityFields = {
+  createdAt: '2010-01-01T00:00:00Z',
+  isGitHubStar: true,
+  hasSponsorsListing: true,
+  organizations: { totalCount: 1 },
+  pullRequests: { totalCount: 100 },
+  issues: { totalCount: 100 },
+  repositoriesContributedTo: { totalCount: 25 },
+  starredRepositories: { totalCount: 10 },
+} as const
 
 function profileResponse({
   bio = 'Code & <cats> 🙂',
@@ -18,14 +30,25 @@ function profileResponse({
         name,
         bio,
         avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
+        ...activityFields,
         followers: { totalCount: 12 },
+        pinnedItems: { nodes: [] },
         repositories: {
           totalCount: 34,
-          nodes: [{ stargazerCount: 56 }],
+          nodes: [
+            {
+              stargazerCount: 56,
+              primaryLanguage: { name: 'TypeScript' },
+            },
+          ],
           pageInfo: { hasNextPage: false, endCursor: null },
         },
         contributionsCollection: {
-          contributionCalendar: { totalContributions: 78 },
+          totalCommitContributions: 3,
+          totalIssueContributions: 25,
+          totalPullRequestContributions: 50,
+          totalPullRequestReviewContributions: 150,
+          contributionCalendar: { totalContributions: 78, weeks: [] },
         },
       },
     },
@@ -46,8 +69,35 @@ function mockSuccessfulFetch(profile = profileResponse()): void {
   )
 }
 
+function appendGiphyFetches(): void {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(
+      Response.json({
+        data: [
+          {
+            id: 'abc123',
+            title: 'Coding cat',
+            images: {
+              fixed_height: {
+                url: 'https://media1.giphy.com/media/abc123/200.gif',
+                width: '320',
+                height: '200',
+              },
+            },
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(
+      new Response(new Uint8Array([0, 1, 2]), {
+        headers: { 'Content-Type': 'image/gif' },
+      }),
+    )
+}
+
 beforeEach(() => {
   process.env.GITHUB_TOKEN = 'test-token'
+  process.env.GIPHY_API_KEY = 'test-giphy-key'
 })
 
 afterEach(() => {
@@ -56,6 +106,11 @@ afterEach(() => {
     delete process.env.GITHUB_TOKEN
   } else {
     process.env.GITHUB_TOKEN = originalToken
+  }
+  if (originalGiphyKey === undefined) {
+    delete process.env.GIPHY_API_KEY
+  } else {
+    process.env.GIPHY_API_KEY = originalGiphyKey
   }
 })
 
@@ -66,7 +121,7 @@ describe('GET /api/profile', () => {
 
     expect(body.routes.profile).toMatchObject({
       method: 'GET',
-      path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>',
+      path: '/api/profile?username=<name>&theme=<theme>&effect=<effect>&bannerGiphy=<search-or-id>',
       status: 'available',
     })
   })
@@ -75,7 +130,7 @@ describe('GET /api/profile', () => {
     mockSuccessfulFetch()
 
     const response = await app.request(
-      '/api/profile?username=octocat&theme=dark',
+      '/api/profile?username=octocat&theme=nebula',
     )
     const svg = await response.text()
 
@@ -88,7 +143,17 @@ describe('GET /api/profile', () => {
     )
     expect(response.headers.has('location')).toBe(false)
     expect(response.headers.has('x-github-deco-error')).toBe(false)
-    expect(svg).toContain('width="842" height="236"')
+    expect(svg).toContain('width="842" height="492"')
+    expect(svg).toContain('data-theme-renderer="nebula"')
+    expect(svg).toContain('data-nebula-banner="true"')
+    expect(svg).toContain('data-auto-badges="true"')
+    expect(svg.match(/data-badge-kind="level"/g)).toHaveLength(1)
+    expect(svg).toContain('data-badge-id="github-star"')
+    expect(svg).toContain('data-badge-kind="achievement"')
+    expect(svg).toContain('data-badge-overflow=')
+    expect(svg).not.toContain('data-nebula-status')
+    expect(svg).not.toContain('Online — Building things')
+    expect(svg).not.toContain('>GITHUB</text>')
     expect(svg).toContain('role="img"')
     expect(svg).toContain('data-effect="pulse"')
     expect(svg).toContain('data-stat="followers"')
@@ -104,6 +169,20 @@ describe('GET /api/profile', () => {
     expect(svg).toContain('>34<')
     expect(svg).toContain('>56<')
     expect(svg).toContain('>78<')
+  })
+
+  it('renders a selected Giphy GIF in the nebula banner', async () => {
+    mockSuccessfulFetch()
+    appendGiphyFetches()
+
+    const response = await app.request(
+      '/api/profile?username=octocat&theme=nebula&bannerGiphy=coding',
+    )
+    const svg = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(svg).toContain('data-nebula-banner-gif="abc123"')
+    expect(svg).toContain('href="data:image/gif;base64,AAEC"')
   })
 
   it('renders a selected effect candidate in the SVG', async () => {
@@ -127,13 +206,13 @@ describe('GET /api/profile', () => {
     ],
     [
       'parameter order and theme casing',
-      '/api/profile?theme=DARK&username=OctoCat',
-      '/api/profile?username=octocat&theme=dark',
+      '/api/profile?theme=NEBULA&username=OctoCat',
+      '/api/profile?username=octocat&theme=nebula',
     ],
     [
       'effect casing and order',
-      '/api/profile?effect=ORBIT&username=OctoCat&theme=ocean',
-      '/api/profile?username=octocat&theme=ocean&effect=orbit',
+      '/api/profile?effect=ORBIT&username=OctoCat&theme=nebula',
+      '/api/profile?username=octocat&theme=nebula&effect=orbit',
     ],
     [
       'unknown parameters',
@@ -142,7 +221,7 @@ describe('GET /api/profile', () => {
     ],
     [
       'duplicate and explicit default parameters',
-      '/api/profile?username=octocat&username=other&theme=default&theme=dark&effect=pulse',
+      '/api/profile?username=octocat&username=other&theme=default&theme=nebula&effect=pulse',
       '/api/profile?username=octocat',
     ],
     [

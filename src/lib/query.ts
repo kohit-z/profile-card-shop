@@ -1,4 +1,13 @@
 import {
+  parseOutlineStyle,
+  type OutlineStyle,
+} from '../data/outline-style.js'
+import {
+  DEFAULT_SKILL_ICON_THEME,
+  parseSkillIconTheme,
+  type SkillIconTheme,
+} from '../data/skill-style.js'
+import {
   EFFECT_CATALOG,
   effectSupportsTarget,
   resolveEffectName,
@@ -11,20 +20,24 @@ import {
 import { resolveThemeName, type ThemeName } from '../themes/index.js'
 
 export const MAX_USERNAME_LENGTH = 39
-export const MAX_SKILLS = 20
+export const MAX_SKILLS = 48
 export const MAX_SKILL_LENGTH = 32
-export const MAX_SKILLS_QUERY_LENGTH = 512
+export const MAX_SKILLS_QUERY_LENGTH = 2048
 export const MAX_CARD_SECTIONS_QUERY_LENGTH = 128
 export const MAX_CARD_EFFECTS_QUERY_LENGTH = 512
 export const MAX_LINK_ENTRIES = 6
 export const MAX_LINK_QUERY_LENGTH = 512
 export const MAX_LINK_VALUE_LENGTH = 80
+export const MAX_GIPHY_QUERY_LENGTH = 80
 export const CARD_SECTION_NAMES = [
   'profile',
   'stats',
   'skills',
+  'projects',
+  'contributions',
   'contact',
   'donate',
+  'giphy',
 ] as const
 
 export type CardSectionName = (typeof CARD_SECTION_NAMES)[number]
@@ -33,6 +46,7 @@ const USERNAME_PATTERN = /^(?!-)(?!.*--)[a-z0-9-]+(?<!-)$/
 const SKILL_PATTERN = /^[a-z0-9][a-z0-9+#.-]*$/
 const LINK_PLATFORM_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const LINK_VALUE_PATTERN = /^[a-z0-9][a-z0-9@._+-]*$/
+const GIPHY_QUERY_PATTERN = /^[a-z0-9][a-z0-9 _+-]*$/i
 
 export interface QueryError {
   readonly code: string
@@ -45,6 +59,7 @@ export type QueryResult<T> =
 
 export interface ProfileQuery {
   readonly username: string
+  readonly bannerGiphy?: string
   readonly theme: ThemeName
   readonly effect: EffectName
 }
@@ -53,11 +68,15 @@ export interface SkillsQuery {
   readonly skills: readonly string[]
   readonly theme: ThemeName
   readonly labels: boolean
+  readonly iconTheme: SkillIconTheme
+  readonly outline: OutlineStyle
 }
 
 interface SkillsFields {
   readonly skills: readonly string[]
   readonly labels: boolean
+  readonly iconTheme: SkillIconTheme
+  readonly outline: OutlineStyle
 }
 
 export interface CardQuery {
@@ -66,8 +85,12 @@ export interface CardQuery {
   readonly skills: readonly string[]
   readonly contact: readonly string[]
   readonly donate: readonly string[]
+  readonly giphy?: string
+  readonly bannerGiphy?: string
   readonly theme: ThemeName
   readonly labels: boolean
+  readonly iconTheme: SkillIconTheme
+  readonly outline: OutlineStyle
   readonly effects: {
     readonly background: BackgroundEffectName
     readonly card: CardEffectName
@@ -104,12 +127,22 @@ export function parseProfileQuery(
 ): QueryResult<ProfileQuery> {
   const username = parseUsername(params)
   if (!username.ok) return username
+  const theme = resolveThemeName(params.get('theme'))
+  const bannerGiphy = parseBannerGiphyQuery(params)
+  if (!bannerGiphy.ok) return bannerGiphy
+  if (bannerGiphy.value && theme !== 'nebula') {
+    return failure(
+      'banner_giphy_theme_required',
+      'The bannerGiphy setting is only available with the nebula theme.',
+    )
+  }
 
   return {
     ok: true,
     value: {
       username: username.value,
-      theme: resolveThemeName(params.get('theme')),
+      ...(bannerGiphy.value ? { bannerGiphy: bannerGiphy.value } : {}),
+      theme,
       effect: resolveEffectName(params.get('effect')),
     },
   }
@@ -182,11 +215,23 @@ function parseSkillsFields(
     return labels
   }
 
+  const iconTheme = parseSkillIconTheme(params.get('iconTheme'))
+  if (!iconTheme.ok) {
+    return failure(iconTheme.error.code, iconTheme.error.message)
+  }
+
+  const outline = parseOutlineStyle(params.get('outline'))
+  if (!outline.ok) {
+    return failure(outline.error.code, outline.error.message)
+  }
+
   return {
     ok: true,
     value: {
       skills,
       labels: labels.value,
+      iconTheme: iconTheme.value,
+      outline: outline.value,
     },
   }
 }
@@ -256,6 +301,54 @@ function parseLinkEntries(
   return { ok: true, value: entries }
 }
 
+export function normalizeGiphyQuery(rawValue: string): QueryResult<string> {
+  const trimmed = rawValue.trim()
+  if (!trimmed) {
+    return failure(
+      'giphy_required',
+      'The giphy query parameter is required for the giphy section.',
+    )
+  }
+  if (trimmed.length > MAX_GIPHY_QUERY_LENGTH) {
+    return failure(
+      'giphy_too_long',
+      `The giphy query must not exceed ${MAX_GIPHY_QUERY_LENGTH} characters.`,
+    )
+  }
+  if (!GIPHY_QUERY_PATTERN.test(trimmed)) {
+    return failure(
+      'giphy_invalid',
+      `Giphy queries must be 1-${MAX_GIPHY_QUERY_LENGTH} characters using letters, numbers, spaces, underscores, plus, or hyphens.`,
+    )
+  }
+
+  return { ok: true, value: trimmed.replace(/\s+/g, ' ') }
+}
+
+function parseGiphyQuery(params: URLSearchParams): QueryResult<string> {
+  return normalizeGiphyQuery(params.get('giphy') ?? '')
+}
+
+function parseBannerGiphyQuery(
+  params: URLSearchParams,
+): QueryResult<string | undefined> {
+  const rawValue = params.get('bannerGiphy')
+  if (rawValue === null) {
+    return { ok: true, value: undefined }
+  }
+
+  const normalized = normalizeGiphyQuery(rawValue)
+  if (normalized.ok) {
+    return normalized
+  }
+
+  const code = normalized.error.code.replace(/^giphy_/, 'banner_giphy_')
+  return failure(
+    code,
+    normalized.error.message.replaceAll('giphy', 'bannerGiphy'),
+  )
+}
+
 export function parseCardQuery(
   params: URLSearchParams,
 ): QueryResult<CardQuery> {
@@ -286,18 +379,32 @@ export function parseCardQuery(
   }
 
   const typedSections = sections as CardSectionName[]
+  const theme = resolveThemeName(params.get('theme'))
   const needsProfile =
-    typedSections.includes('profile') || typedSections.includes('stats')
+    typedSections.includes('profile') ||
+    typedSections.includes('stats') ||
+    typedSections.includes('projects') ||
+    typedSections.includes('contributions')
   const username = needsProfile ? parseUsername(params) : undefined
   if (username && !username.ok) return username
 
   let skills: readonly string[] = []
   let labels = true
+  let iconTheme: SkillIconTheme = DEFAULT_SKILL_ICON_THEME
+  let outline: OutlineStyle
   if (typedSections.includes('skills')) {
     const parsedSkills = parseSkillsFields(params)
     if (!parsedSkills.ok) return parsedSkills
     skills = parsedSkills.value.skills
     labels = parsedSkills.value.labels
+    iconTheme = parsedSkills.value.iconTheme
+    outline = parsedSkills.value.outline
+  } else {
+    const parsedOutline = parseOutlineStyle(params.get('outline'))
+    if (!parsedOutline.ok) {
+      return failure(parsedOutline.error.code, parsedOutline.error.message)
+    }
+    outline = parsedOutline.value
   }
 
   let contact: readonly string[] = []
@@ -312,6 +419,29 @@ export function parseCardQuery(
     const parsedDonate = parseLinkEntries(params, 'donate')
     if (!parsedDonate.ok) return parsedDonate
     donate = parsedDonate.value
+  }
+
+  let giphy: string | undefined
+  if (typedSections.includes('giphy')) {
+    const parsedGiphy = parseGiphyQuery(params)
+    if (!parsedGiphy.ok) return parsedGiphy
+    giphy = parsedGiphy.value
+  }
+
+  const parsedBannerGiphy = parseBannerGiphyQuery(params)
+  if (!parsedBannerGiphy.ok) return parsedBannerGiphy
+  const bannerGiphy = parsedBannerGiphy.value
+  if (bannerGiphy && theme !== 'nebula') {
+    return failure(
+      'banner_giphy_theme_required',
+      'The bannerGiphy setting is only available with the nebula theme.',
+    )
+  }
+  if (bannerGiphy && !typedSections.includes('profile')) {
+    return failure(
+      'banner_giphy_profile_required',
+      'The bannerGiphy setting requires the profile section.',
+    )
   }
 
   let background: BackgroundEffectName = 'none'
@@ -397,8 +527,12 @@ export function parseCardQuery(
       skills,
       contact,
       donate,
-      theme: resolveThemeName(params.get('theme')),
+      giphy,
+      ...(bannerGiphy ? { bannerGiphy } : {}),
+      theme,
       labels,
+      iconTheme,
+      outline,
       effects: { background, card, avatar, sections: sectionEffects },
     },
   }

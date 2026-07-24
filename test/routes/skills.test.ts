@@ -1,21 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
-import { SKILL_CATALOG } from '../../src/data/skills'
+import { SKILL_CATALOG, SKILL_IDS } from '../../src/data/skills'
 import app from '../../src/index'
+import { MAX_SKILLS } from '../../src/lib/query'
 import { THEME_NAMES } from '../../src/themes'
 import { renderSkillsCard } from '../../src/widgets/skills'
 
-const MAX_SKILLS = [
+const SAMPLE_SKILLS = [
   'javascript',
   'typescript',
   'python',
-  'go',
+  'golang',
   'rust',
   'react',
   'nextjs',
-  'vue',
+  'vuejs',
   'nodejs',
-  'hono',
+  'nestjs',
   'git',
   'github',
   'docker',
@@ -24,7 +25,7 @@ const MAX_SKILLS = [
   'pnpm',
   'vercel',
   'cloudflare',
-  'postgres',
+  'postgresql',
   'linux',
 ] as const
 
@@ -43,15 +44,19 @@ describe('GET /api/skills', () => {
 
     expect(body.routes.skills).toMatchObject({
       method: 'GET',
-      path: '/api/skills?skills=<skill,skill>&theme=<theme>&labels=true',
+      path: '/api/skills?skills=<skill,skill>&theme=<theme>&labels=true&iconTheme=<theme>',
       status: 'available',
     })
-    expect(body.skills).toEqual(MAX_SKILLS)
+    expect(body.skills).toEqual([...SKILL_IDS])
+    expect(body.skills.length).toBeGreaterThan(100)
+    expect(body.skillIconThemes).toEqual(['accent', 'brand', 'mono', 'soft'])
+    expect(body).not.toHaveProperty('skillIconBorders')
+    expect(body.outlines).toEqual(['rounded', 'square', 'soft', 'none'])
   })
 
   it('renders one labeled skill as a compact accessible SVG', async () => {
     const { response, svg } = await requestSkills(
-      'skills=typescript&theme=dark&labels=true',
+      'skills=typescript&theme=nebula&labels=true',
     )
 
     expect(response.status).toBe(200)
@@ -68,24 +73,50 @@ describe('GET /api/skills', () => {
     expect(svg).toContain('aria-labelledby="skills-title skills-description"')
     expect(svg).toContain('<title id="skills-title">Skills: TypeScript</title>')
     expect(svg).toContain('<desc id="skills-description">')
-    expect(svg).toContain('>TypeScript</text>')
-    expect(svg).toContain('<path d="')
+    expect(svg).toContain('aria-label="TypeScript"')
+    expect(svg).toContain('data-theme="nebula"')
+    expect(svg).toContain('data-icon="typescript"')
+    expect(svg).toContain('data-icon-theme="accent"')
+    expect(svg).not.toContain('data-icon-border')
+    expect(svg).toContain('data-outline="rounded"')
   })
 
-  it('uses deterministic multi-row layouts that adapt through the maximum', async () => {
+  it('packs skills into as many columns as the card width allows', async () => {
     const five = await requestSkills(
       'skills=javascript,typescript,python,go,rust',
     )
-    const maximum = await requestSkills(`skills=${MAX_SKILLS.join(',')}`)
+    const many = await requestSkills(`skills=${SAMPLE_SKILLS.join(',')}`)
+    const iconsOnly = await requestSkills(
+      `skills=${SAMPLE_SKILLS.slice(0, 10).join(',')}&labels=false`,
+    )
 
-    expect(five.svg).toContain('data-columns="3"')
-    expect(five.svg).toContain('data-rows="2"')
-    expect(maximum.response.status).toBe(200)
-    expect(maximum.svg).toContain('data-columns="5"')
-    expect(maximum.svg).toContain('data-rows="4"')
-    for (const id of MAX_SKILLS) {
-      expect(maximum.svg).toContain(`data-skill="${id}"`)
+    expect(five.svg).toContain('data-columns="5"')
+    expect(five.svg).toContain('data-rows="1"')
+    expect(many.response.status).toBe(200)
+    expect(many.svg).toContain('data-columns="5"')
+    expect(many.svg).toContain('data-rows="4"')
+    expect(iconsOnly.svg).toContain('data-columns="10"')
+    expect(iconsOnly.svg).toContain('data-rows="1"')
+    for (const id of SAMPLE_SKILLS) {
+      expect(many.svg).toContain(`data-skill="${id}"`)
     }
+  })
+
+  it('supports icon themes and canonicalizes stale icon-border input away', async () => {
+    const stale = await app.request(
+      '/api/skills?skills=react,git&iconTheme=brand&iconBorder=circle',
+    )
+    expect(stale.status).toBe(308)
+    expect(stale.headers.get('location')).toBe(
+      '/api/skills?skills=react%2Cgit&iconTheme=brand',
+    )
+
+    const { svg } = await requestSkills('skills=react,git&iconTheme=brand')
+
+    expect(svg).toContain('data-icon-theme="brand"')
+    expect(svg).not.toContain('data-icon-border')
+    expect(svg).toContain('data-icon="react-light"')
+    expect(svg).toContain('data-icon="git"')
   })
 
   it('supports hidden labels while retaining accessible icon names', async () => {
@@ -115,11 +146,31 @@ describe('GET /api/skills', () => {
     const { svg } = await requestSkills(
       `skills=github,cloudflare,linux&theme=${theme}`,
     )
+    const githubIcon = theme === 'nebula' ? 'github-dark' : 'github-light'
+    const cloudflareIcon =
+      theme === 'nebula' ? 'cloudflare-dark' : 'cloudflare-light'
+    const linuxIcon = theme === 'nebula' ? 'linux-dark' : 'linux-light'
 
     expect(svg).toContain(`data-theme="${theme}"`)
-    expect(svg).toContain('fill="currentColor"')
+    expect(svg).toContain(`data-icon="${githubIcon}"`)
+    expect(svg).toContain(`data-icon="${cloudflareIcon}"`)
+    expect(svg).toContain(`data-icon="${linuxIcon}"`)
     expect(svg).not.toMatch(/<image\b/i)
-    expect(svg).not.toMatch(/(?:href|src)="https?:\/\//i)
+    expect(svg).not.toContain('skill-clip-')
+  })
+
+  it('keeps classic skill tile outlines controlled by the global outline', async () => {
+    const square = await requestSkills('skills=typescript&outline=square')
+    const none = await requestSkills('skills=typescript&outline=none')
+
+    expect(square.svg).toMatch(
+      /data-skill="typescript"[\s\S]*?<rect[^>]*rx="2"[^>]*stroke=/,
+    )
+    expect(none.svg).toMatch(
+      /data-skill="typescript"[\s\S]*?<rect[^>]*stroke="none"/,
+    )
+    expect(square.svg).toContain('data-icon="typescript"')
+    expect(none.svg).toContain('data-icon="typescript"')
   })
 
   it('escapes registry labels in visible and accessible text', () => {
@@ -137,14 +188,16 @@ describe('GET /api/skills', () => {
     ['', 'skills_required'],
     ['skills=', 'skills_required'],
     ['skills=%3Cscript%3E', 'skill_invalid'],
-    [`skills=${'a'.repeat(513)}`, 'skills_too_long'],
+    [`skills=${'a'.repeat(2049)}`, 'skills_too_long'],
     [
-      `skills=${[...MAX_SKILLS, 'extra'].join(',')}`,
+      `skills=${Array.from({ length: MAX_SKILLS + 1 }, (_, index) => `skill${index}`).join(',')}`,
       'skills_limit',
     ],
     ['skills=typescript,not-a-real-skill', 'skill_unknown'],
     ['skills=constructor', 'skill_unknown'],
     ['skills=typescript&labels=maybe', 'labels_invalid'],
+    ['skills=typescript&iconTheme=neon', 'icon_theme_invalid'],
+    ['skills=typescript&outline=bevel', 'outline_invalid'],
   ])(
     'returns an HTTP-200 no-store SVG error for %s',
     async (query, expectedCode) => {

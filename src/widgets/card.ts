@@ -1,8 +1,10 @@
 import {
-  renderAvatarEffect,
-  renderBackgroundEffect,
-  renderCardEffect,
-  renderSectionEffect,
+  DEFAULT_OUTLINE_STYLE,
+  resolveOutlineStyle,
+  type OutlineStyle,
+} from '../data/outline-style.js'
+import type { BadgeEvaluation } from '../data/badges.js'
+import {
   resolveAvatarEffectName,
   resolveBackgroundEffectName,
   resolveCardEffectName,
@@ -12,11 +14,19 @@ import {
   type BackgroundEffectName,
   type CardEffectName,
   type EffectFrame,
-  type EffectMarkup,
   type SectionEffectName,
 } from '../effects/index.js'
+import type { CardLink } from '../data/links.js'
+import type { SkillIconTheme } from '../data/skill-style.js'
+import type { SkillDefinition } from '../data/skills.js'
 import { escapeXml } from '../lib/svg.js'
+import type { GiphyGif } from '../services/giphy.js'
+import type {
+  ContributionCalendar,
+  PinnedRepository,
+} from '../services/github.js'
 import { getTheme, type Theme, type ThemeName } from '../themes/index.js'
+import type { ProfileCardData } from './sections/profile.js'
 
 export const CARD_WIDTH = 842
 
@@ -29,6 +39,7 @@ export interface CardSectionRenderContext {
   readonly theme: Theme
   readonly fontFamily: string
   readonly avatarAnimation: string
+  readonly outline: OutlineStyle
 }
 
 export interface CardSection {
@@ -36,9 +47,49 @@ export interface CardSection {
   readonly height: number
   readonly title: string
   readonly description: string
+  /**
+   * Semantic content for full-layout themes. A theme can ignore the legacy
+   * frame and compose these values anywhere in its own SVG.
+   */
+  readonly payload?: CardSectionPayload
   readonly avatarAnchor?: (frame: EffectFrame) => AvatarAnchor
   readonly render: (context: CardSectionRenderContext) => string
 }
+
+export type CardSectionPayload =
+  | {
+      readonly type: 'profile'
+      readonly profile: ProfileCardData
+      readonly badgeEvaluation?: BadgeEvaluation
+    }
+  | {
+      readonly type: 'stats'
+      readonly profile: ProfileCardData
+      readonly besideAvatar: boolean
+    }
+  | {
+      readonly type: 'skills'
+      readonly skills: readonly SkillDefinition[]
+      readonly labels: boolean
+      readonly iconTheme: SkillIconTheme
+    }
+  | {
+      readonly type: 'projects'
+      readonly projects: readonly PinnedRepository[]
+    }
+  | {
+      readonly type: 'contributions'
+      readonly calendar: ContributionCalendar
+    }
+  | {
+      readonly type: 'links'
+      readonly kind: 'contact' | 'donate'
+      readonly links: readonly CardLink[]
+    }
+  | {
+      readonly type: 'giphy'
+      readonly gif: GiphyGif
+    }
 
 export interface CardEffects {
   readonly background?: BackgroundEffectName | string | null
@@ -50,7 +101,9 @@ export interface CardEffects {
 export interface RenderCardOptions {
   readonly sections: readonly CardSection[]
   readonly theme?: ThemeName
+  readonly bannerGif?: GiphyGif
   readonly width?: number
+  readonly outline?: OutlineStyle
   readonly effects?: CardEffects
   readonly title?: string
   readonly description?: string
@@ -61,6 +114,27 @@ export interface RenderCardOptions {
   readonly rootData?: Readonly<Record<string, string>>
 }
 
+export interface ResolvedCardEffects {
+  readonly background: BackgroundEffectName
+  readonly card: CardEffectName
+  readonly avatar: AvatarEffectName
+  readonly sections: Readonly<Record<string, SectionEffectName>>
+}
+
+export interface ThemeRenderContext {
+  readonly sections: readonly CardSection[]
+  readonly theme: Theme
+  readonly bannerGif?: GiphyGif
+  readonly width: number
+  readonly outline: OutlineStyle
+  readonly effects: ResolvedCardEffects
+  readonly title: string
+  readonly description: string
+  readonly titleId: string
+  readonly descriptionId: string
+  readonly rootData: string
+}
+
 export function defineCardSection(section: CardSection): CardSection {
   if (!SECTION_ID_PATTERN.test(section.id)) {
     throw new Error(`Invalid card section id: ${section.id}`)
@@ -69,10 +143,6 @@ export function defineCardSection(section: CardSection): CardSection {
     throw new Error(`Card section "${section.id}" must have a positive height.`)
   }
   return section
-}
-
-function combineMarkup(markups: readonly EffectMarkup[], key: keyof EffectMarkup) {
-  return markups.map((markup) => markup[key] ?? '').filter(Boolean).join('\n')
 }
 
 export function renderCard(options: RenderCardOptions): string {
@@ -98,91 +168,33 @@ export function renderCard(options: RenderCardOptions): string {
   ) {
     throw new Error('Card accessibility IDs must be valid XML identifiers.')
   }
+  if (titleId && descriptionId && titleId === descriptionId) {
+    throw new Error('Card accessibility IDs must be distinct.')
+  }
   const width = options.width ?? CARD_WIDTH
-  const height = sections.reduce((total, section) => total + section.height, 0)
+  if (!Number.isFinite(width) || width <= 0) {
+    throw new Error('Card width must be a positive number.')
+  }
   const theme = getTheme(options.theme)
-  const fontFamily = escapeXml(theme.typography.fontFamily)
+  const outline = resolveOutlineStyle(options.outline ?? DEFAULT_OUTLINE_STYLE)
   const backgroundEffect = resolveBackgroundEffectName(options.effects?.background)
   const cardEffect = resolveCardEffectName(options.effects?.card)
   const avatarEffect = resolveAvatarEffectName(options.effects?.avatar)
-  const prefix =
-    backgroundEffect === 'none'
-      ? `card-${theme.name}-${cardEffect}-${avatarEffect}`
-      : `card-${theme.name}-background-${backgroundEffect}-${cardEffect}-${avatarEffect}`
-  const cardClip = `${prefix}-clip`
-  const gradient = `${prefix}-gradient`
-  const cardFrame = { x: 0, y: 0, width, height }
-  const backgroundMarkup = renderBackgroundEffect(backgroundEffect, {
-    theme,
-    frame: cardFrame,
-    ids: { prefix: `${prefix}-background`, clip: cardClip },
-  })
-  const cardMarkup = renderCardEffect(cardEffect, {
-    theme,
-    frame: cardFrame,
-    ids: { prefix, clip: cardClip },
-  })
-
-  let y = 0
-  const laidOutSections = sections.map((section) => {
-    const frame = { x: 0, y, width, height: section.height }
-    y += section.height
-    const sectionEffect = resolveSectionEffectName(
-      options.effects?.sections?.[section.id],
-    )
-    const sectionClip = `${prefix}-section-${section.id}-clip`
-    const effectContext = {
-      theme,
-      frame,
-      ids: {
-        prefix: `${prefix}-${section.id}`,
-        clip: sectionClip,
-      },
-    }
-    const sectionMarkup = renderSectionEffect(sectionEffect, effectContext)
-    const anchor = section.avatarAnchor?.(frame)
-    const avatarMarkup = anchor
-      ? renderAvatarEffect(avatarEffect, { ...effectContext, avatar: anchor })
-      : {}
-
-    return {
-      section,
-      frame,
-      sectionEffect,
-      sectionClip,
-      sectionMarkup,
-      avatarMarkup,
-    }
-  })
-
-  const scopedMarkups = laidOutSections.flatMap((section) => [
-    section.sectionMarkup,
-    section.avatarMarkup,
-  ])
-  const sectionGroups = laidOutSections
-    .map(({ section, frame, sectionEffect, sectionMarkup, avatarMarkup }) => {
-      const content = section.render({
-        frame,
-        theme,
-        fontFamily,
-        avatarAnimation: avatarMarkup.contentAnimation ?? '',
-      })
-      return `<g data-section="${escapeXml(section.id)}" data-section-effect="${sectionEffect}">
-${sectionMarkup.underlay ?? ''}
-${avatarMarkup.underlay ?? ''}
-${content}
-${avatarMarkup.overlay ?? ''}
-${sectionMarkup.overlay ?? ''}
-</g>`
-    })
-    .join('\n')
-
-  const sectionNames = sections.map((section) => section.id).join(',')
+  const sectionEffects = Object.fromEntries(
+    sections.map((section) => [
+      section.id,
+      resolveSectionEffectName(options.effects?.sections?.[section.id]),
+    ]),
+  )
   const title =
     options.title ?? sections.map((section) => section.title).join(' · ')
   const description =
     options.description ??
     sections.map((section) => section.description).join(' ')
+  const prefix =
+    backgroundEffect === 'none'
+      ? `card-${theme.name}-${cardEffect}-${avatarEffect}`
+      : `card-${theme.name}-background-${backgroundEffect}-${cardEffect}-${avatarEffect}`
   const resolvedTitleId = titleId ?? `${prefix}-title`
   const resolvedDescriptionId = descriptionId ?? `${prefix}-description`
   const rootData = Object.entries(options.rootData ?? {})
@@ -193,39 +205,23 @@ ${sectionMarkup.overlay ?? ''}
       return ` data-${key}="${escapeXml(value)}"`
     })
     .join('')
-  const cardClipDefinition =
-    backgroundEffect === 'none' && cardEffect === 'none'
-      ? ''
-      : `    <clipPath id="${cardClip}">
-      <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${theme.card.radius}" />
-    </clipPath>`
-  const sectionClipDefinitions = laidOutSections
-    .filter(({ sectionEffect }) => sectionEffect !== 'none')
-    .map(
-      ({ frame, sectionClip }) => `    <clipPath id="${sectionClip}">
-      <rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" />
-    </clipPath>`,
-    )
-    .join('\n')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${resolvedTitleId} ${resolvedDescriptionId}" data-theme="${theme.name}" data-sections="${escapeXml(sectionNames)}" data-background-effect="${backgroundEffect}" data-card-effect="${cardEffect}" data-avatar-effect="${avatarEffect}"${rootData}>
-  <title id="${resolvedTitleId}">${escapeXml(title)}</title>
-  <desc id="${resolvedDescriptionId}">${escapeXml(description)}</desc>
-  <defs>
-    <linearGradient id="${gradient}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${theme.gradient.from}" />
-      <stop offset="100%" stop-color="${theme.gradient.to}" />
-    </linearGradient>
-${cardClipDefinition}
-${sectionClipDefinitions}
-${backgroundMarkup.defs ?? ''}
-${cardMarkup.defs ?? ''}
-${combineMarkup(scopedMarkups, 'defs')}
-  </defs>
-  <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${theme.card.radius}" fill="url(#${gradient})" stroke="${theme.colors.border}" stroke-width="${theme.card.borderWidth}" />
-${backgroundMarkup.underlay ?? ''}
-${cardMarkup.underlay ?? ''}
-${sectionGroups}
-${cardMarkup.overlay ?? ''}
-</svg>`
+  return theme.renderCard({
+    sections,
+    theme,
+    bannerGif: options.bannerGif,
+    width,
+    outline,
+    effects: {
+      background: backgroundEffect,
+      card: cardEffect,
+      avatar: avatarEffect,
+      sections: sectionEffects,
+    },
+    title,
+    description,
+    titleId: resolvedTitleId,
+    descriptionId: resolvedDescriptionId,
+    rootData,
+  })
 }

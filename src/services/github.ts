@@ -1,7 +1,8 @@
 import { imageDataUrl } from '../lib/svg.js'
 
 const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql'
-const DEFAULT_TIMEOUT_MS = 5_000
+// Cold GraphQL + avatar downloads often exceed 5s on residential networks.
+const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_TIMEOUT_MS = 30_000
 export const MAX_AVATAR_BYTES = 2_000_000
 export const MAX_REPOSITORY_PAGES = 10
@@ -21,8 +22,43 @@ const PROFILE_QUERY = `
       name
       bio
       avatarUrl
+      createdAt
+      isGitHubStar
+      hasSponsorsListing
       followers {
         totalCount
+      }
+      organizations(first: 1) {
+        totalCount
+      }
+      pullRequests(first: 1) {
+        totalCount
+      }
+      issues(first: 1) {
+        totalCount
+      }
+      repositoriesContributedTo(
+        first: 1
+        contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, PULL_REQUEST_REVIEW, REPOSITORY]
+      ) {
+        totalCount
+      }
+      starredRepositories(first: 1) {
+        totalCount
+      }
+      pinnedItems(first: 6, types: [REPOSITORY]) {
+        nodes {
+          ... on Repository {
+            name
+            description
+            url
+            stargazerCount
+            primaryLanguage {
+              name
+              color
+            }
+          }
+        }
       }
       repositories(
         first: 100
@@ -33,6 +69,9 @@ const PROFILE_QUERY = `
         totalCount
         nodes {
           stargazerCount
+          primaryLanguage {
+            name
+          }
         }
         pageInfo {
           hasNextPage
@@ -40,8 +79,20 @@ const PROFILE_QUERY = `
         }
       }
       contributionsCollection {
+        totalCommitContributions
+        totalIssueContributions
+        totalPullRequestContributions
+        totalPullRequestReviewContributions
         contributionCalendar {
           totalContributions
+          weeks {
+            contributionDays {
+              date
+              contributionCount
+              contributionLevel
+              color
+            }
+          }
         }
       }
     }
@@ -86,6 +137,59 @@ export class GitHubServiceError extends Error {
   }
 }
 
+export interface PinnedRepository {
+  readonly name: string
+  readonly description: string | null
+  readonly url: string
+  readonly stargazerCount: number
+  readonly primaryLanguage: {
+    readonly name: string
+    readonly color: string | null
+  } | null
+}
+
+export const CONTRIBUTION_LEVELS = [
+  'NONE',
+  'FIRST_QUARTILE',
+  'SECOND_QUARTILE',
+  'THIRD_QUARTILE',
+  'FOURTH_QUARTILE',
+] as const
+
+export type ContributionLevel = (typeof CONTRIBUTION_LEVELS)[number]
+
+export interface ContributionDay {
+  readonly date: string
+  readonly contributionCount: number
+  readonly contributionLevel: ContributionLevel
+  readonly color: string
+}
+
+export interface ContributionWeek {
+  readonly contributionDays: readonly ContributionDay[]
+}
+
+export interface ContributionCalendar {
+  readonly totalContributions: number
+  readonly weeks: readonly ContributionWeek[]
+}
+
+export interface GitHubActivityMetrics {
+  readonly createdAt: string
+  readonly organizations: number
+  readonly authoredPullRequests: number
+  readonly authoredIssues: number
+  readonly repositoriesContributedTo: number
+  readonly starredRepositories: number
+  readonly commitContributions: number
+  readonly issueContributions: number
+  readonly pullRequestContributions: number
+  readonly pullRequestReviewContributions: number
+  readonly isGitHubStar: boolean
+  readonly hasSponsorsListing: boolean
+  readonly repositoryLanguages: readonly string[]
+}
+
 export interface GitHubProfile {
   readonly login: string
   readonly name: string | null
@@ -95,6 +199,9 @@ export interface GitHubProfile {
   readonly repositories: number
   readonly stars: number
   readonly contributions: number
+  readonly activity: GitHubActivityMetrics
+  readonly contributionCalendar: ContributionCalendar
+  readonly pinnedRepositories: readonly PinnedRepository[]
 }
 
 export interface FetchGitHubProfileOptions {
@@ -111,9 +218,62 @@ interface ProfilePage {
   readonly followers: number
   readonly repositories: number
   readonly contributions: number
+  readonly contributionCalendar: ContributionCalendar
+  readonly activity: GitHubActivityMetrics
   readonly stars: number
+  readonly pinnedRepositories: readonly PinnedRepository[]
   readonly hasNextPage: boolean
   readonly endCursor: string | null
+}
+
+function isContributionLevel(value: unknown): value is ContributionLevel {
+  return (
+    typeof value === 'string' &&
+    (CONTRIBUTION_LEVELS as readonly string[]).includes(value)
+  )
+}
+
+function parseContributionCalendar(
+  contributionCalendar: Record<string, unknown>,
+): ContributionCalendar {
+  const totalContributions = readCount(
+    contributionCalendar,
+    'totalContributions',
+  )
+  if (!Array.isArray(contributionCalendar.weeks)) {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  const weeks: ContributionWeek[] = []
+  for (const weekValue of contributionCalendar.weeks) {
+    if (!isRecord(weekValue)) {
+      throw new GitHubServiceError('malformed_response')
+    }
+    if (!Array.isArray(weekValue.contributionDays)) {
+      throw new GitHubServiceError('malformed_response')
+    }
+
+    const contributionDays: ContributionDay[] = []
+    for (const dayValue of weekValue.contributionDays) {
+      if (!isRecord(dayValue)) {
+        throw new GitHubServiceError('malformed_response')
+      }
+      const contributionLevel = dayValue.contributionLevel
+      if (!isContributionLevel(contributionLevel)) {
+        throw new GitHubServiceError('malformed_response')
+      }
+      contributionDays.push({
+        date: readIsoDate(dayValue, 'date'),
+        contributionCount: readCount(dayValue, 'contributionCount'),
+        contributionLevel,
+        color: readString(dayValue, 'color'),
+      })
+    }
+
+    weeks.push({ contributionDays })
+  }
+
+  return { totalContributions, weeks }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -156,6 +316,107 @@ function readCount(record: Record<string, unknown>, key: string): number {
     throw new GitHubServiceError('malformed_response')
   }
   return value as number
+}
+
+function readBoolean(record: Record<string, unknown>, key: string): boolean {
+  const value = record[key]
+  if (typeof value !== 'boolean') {
+    throw new GitHubServiceError('malformed_response')
+  }
+  return value
+}
+
+function readIsoDate(record: Record<string, unknown>, key: string): string {
+  const value = readString(record, key)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  const timestamp = Date.parse(`${value}T00:00:00Z`)
+  if (
+    !Number.isFinite(timestamp) ||
+    new Date(timestamp).toISOString().slice(0, 10) !== value
+  ) {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  return value
+}
+
+const ISO_DATE_TIME_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/
+
+function readIsoDateTime(
+  record: Record<string, unknown>,
+  key: string,
+): string {
+  const value = readString(record, key)
+  const match = ISO_DATE_TIME_PATTERN.exec(value)
+  if (!match) {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const hour = Number(match[4])
+  const minute = Number(match[5])
+  const second = Number(match[6])
+  const offsetHour = match[7] === undefined ? 0 : Number(match[7])
+  const offsetMinute = match[8] === undefined ? 0 : Number(match[8])
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const daysInMonth = [
+    31,
+    leapYear ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ]
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > (daysInMonth[month - 1] ?? 0) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offsetHour > 23 ||
+    offsetMinute > 59 ||
+    !Number.isFinite(Date.parse(value))
+  ) {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  return value
+}
+
+function readRepositoryUrl(record: Record<string, unknown>): string {
+  const value = readString(record, 'url')
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  if (
+    url.protocol !== 'https:' ||
+    url.username !== '' ||
+    url.password !== '' ||
+    url.hostname.toLowerCase() !== 'github.com'
+  ) {
+    throw new GitHubServiceError('malformed_response')
+  }
+
+  return url.toString()
 }
 
 function graphQlErrorCode(value: unknown): unknown {
@@ -204,7 +465,16 @@ function parseProfilePage(payload: unknown): ProfilePage {
 
   const user = readRecord(data, 'user')
   const followers = readRecord(user, 'followers')
+  const organizations = readRecord(user, 'organizations')
+  const pullRequests = readRecord(user, 'pullRequests')
+  const issues = readRecord(user, 'issues')
+  const repositoriesContributedTo = readRecord(
+    user,
+    'repositoriesContributedTo',
+  )
+  const starredRepositories = readRecord(user, 'starredRepositories')
   const repositories = readRecord(user, 'repositories')
+  const pinnedItems = readRecord(user, 'pinnedItems')
   const contributionsCollection = readRecord(
     user,
     'contributionsCollection',
@@ -215,11 +485,12 @@ function parseProfilePage(payload: unknown): ProfilePage {
   )
   const pageInfo = readRecord(repositories, 'pageInfo')
 
-  if (!Array.isArray(repositories.nodes)) {
+  if (!Array.isArray(repositories.nodes) || !Array.isArray(pinnedItems.nodes)) {
     throw new GitHubServiceError('malformed_response')
   }
 
   let stars = 0
+  const repositoryLanguages = new Set<string>()
   for (const node of repositories.nodes) {
     if (!isRecord(node)) {
       throw new GitHubServiceError('malformed_response')
@@ -228,6 +499,47 @@ function parseProfilePage(payload: unknown): ProfilePage {
     if (!Number.isSafeInteger(stars)) {
       throw new GitHubServiceError('malformed_response')
     }
+
+    const languageValue = node.primaryLanguage
+    if (languageValue !== null) {
+      if (!isRecord(languageValue)) {
+        throw new GitHubServiceError('malformed_response')
+      }
+      const language = readString(languageValue, 'name')
+      if (language.trim() === '') {
+        throw new GitHubServiceError('malformed_response')
+      }
+      repositoryLanguages.add(language)
+    }
+  }
+
+  const pinnedRepositories: PinnedRepository[] = []
+  for (const node of pinnedItems.nodes) {
+    // GraphQL may return null for deleted or inaccessible pins.
+    if (node === null) {
+      continue
+    }
+    if (!isRecord(node)) {
+      throw new GitHubServiceError('malformed_response')
+    }
+    const languageValue = node.primaryLanguage
+    let primaryLanguage: PinnedRepository['primaryLanguage'] = null
+    if (languageValue !== null && languageValue !== undefined) {
+      if (!isRecord(languageValue)) {
+        throw new GitHubServiceError('malformed_response')
+      }
+      primaryLanguage = {
+        name: readString(languageValue, 'name'),
+        color: readNullableString(languageValue, 'color'),
+      }
+    }
+    pinnedRepositories.push({
+      name: readString(node, 'name'),
+      description: readNullableString(node, 'description'),
+      url: readRepositoryUrl(node),
+      stargazerCount: readCount(node, 'stargazerCount'),
+      primaryLanguage,
+    })
   }
 
   if (typeof pageInfo.hasNextPage !== 'boolean') {
@@ -239,6 +551,8 @@ function parseProfilePage(payload: unknown): ProfilePage {
     throw new GitHubServiceError('malformed_response')
   }
 
+  const calendar = parseContributionCalendar(contributionCalendar)
+
   return {
     login: readString(user, 'login'),
     name: readNullableString(user, 'name'),
@@ -246,8 +560,40 @@ function parseProfilePage(payload: unknown): ProfilePage {
     avatarUrl: readString(user, 'avatarUrl'),
     followers: readCount(followers, 'totalCount'),
     repositories: readCount(repositories, 'totalCount'),
-    contributions: readCount(contributionCalendar, 'totalContributions'),
+    contributions: calendar.totalContributions,
+    contributionCalendar: calendar,
+    activity: {
+      createdAt: readIsoDateTime(user, 'createdAt'),
+      organizations: readCount(organizations, 'totalCount'),
+      authoredPullRequests: readCount(pullRequests, 'totalCount'),
+      authoredIssues: readCount(issues, 'totalCount'),
+      repositoriesContributedTo: readCount(
+        repositoriesContributedTo,
+        'totalCount',
+      ),
+      starredRepositories: readCount(starredRepositories, 'totalCount'),
+      commitContributions: readCount(
+        contributionsCollection,
+        'totalCommitContributions',
+      ),
+      issueContributions: readCount(
+        contributionsCollection,
+        'totalIssueContributions',
+      ),
+      pullRequestContributions: readCount(
+        contributionsCollection,
+        'totalPullRequestContributions',
+      ),
+      pullRequestReviewContributions: readCount(
+        contributionsCollection,
+        'totalPullRequestReviewContributions',
+      ),
+      isGitHubStar: readBoolean(user, 'isGitHubStar'),
+      hasSponsorsListing: readBoolean(user, 'hasSponsorsListing'),
+      repositoryLanguages: [...repositoryLanguages],
+    },
     stars,
+    pinnedRepositories,
     hasNextPage: pageInfo.hasNextPage,
     endCursor,
   }
@@ -441,6 +787,7 @@ async function fetchGitHubProfileWithinDeadline(
   let firstPage: ProfilePage | undefined
   let pageCount = 0
   let stars = 0
+  const repositoryLanguages = new Set<string>()
 
   while (true) {
     if (pageCount >= MAX_REPOSITORY_PAGES) {
@@ -453,6 +800,9 @@ async function fetchGitHubProfileWithinDeadline(
     stars += page.stars
     if (!Number.isSafeInteger(stars)) {
       throw new GitHubServiceError('malformed_response')
+    }
+    for (const language of page.activity.repositoryLanguages) {
+      repositoryLanguages.add(language)
     }
     if (!page.hasNextPage) {
       break
@@ -481,6 +831,12 @@ async function fetchGitHubProfileWithinDeadline(
     repositories: firstPage.repositories,
     stars,
     contributions: firstPage.contributions,
+    activity: {
+      ...firstPage.activity,
+      repositoryLanguages: [...repositoryLanguages],
+    },
+    contributionCalendar: firstPage.contributionCalendar,
+    pinnedRepositories: firstPage.pinnedRepositories,
   }
 }
 

@@ -5,25 +5,35 @@ import {
   DONATE_CATALOG,
   resolveCardLinks,
 } from '../data/links.js'
+import { evaluateBadges, type BadgeEvaluation } from '../data/badges.js'
+import { DEFAULT_OUTLINE_STYLE } from '../data/outline-style.js'
 import { resolveSkills } from '../data/skills.js'
 import { parseCardQuery } from '../lib/query.js'
 import { svgErrorResponse, svgResponse, truncateText } from '../lib/svg.js'
 import {
   fetchGitHubProfile,
   GitHubServiceError,
+  type GitHubProfile,
 } from '../services/github.js'
+import {
+  fetchGiphyGif,
+  GiphyServiceError,
+  type GiphyGif,
+} from '../services/giphy.js'
 import { DEFAULT_THEME_NAME } from '../themes/index.js'
 import { CARD_WIDTH, renderCard, type CardSection } from '../widgets/card.js'
 import {
   createProfileSection,
   createStatsSection,
-  type ProfileCardData,
 } from '../widgets/sections/profile.js'
 import { createSkillsSection } from '../widgets/sections/skills.js'
 import {
   createContactSection,
   createDonateSection,
 } from '../widgets/sections/links.js'
+import { createProjectsSection } from '../widgets/sections/projects.js'
+import { createContributionsSection } from '../widgets/sections/contributions.js'
+import { createGiphySection } from '../widgets/sections/giphy.js'
 
 export const cardRoutes = new Hono()
 
@@ -109,6 +119,9 @@ cardRoutes.get('/card', async (context) => {
     if (!query.value.labels) {
       canonicalParams.set('labels', 'false')
     }
+    if (query.value.iconTheme !== 'accent') {
+      canonicalParams.set('iconTheme', query.value.iconTheme)
+    }
   }
   if (query.value.sections.includes('contact')) {
     canonicalParams.set(
@@ -122,8 +135,17 @@ cardRoutes.get('/card', async (context) => {
       resolvedDonate.links.map((link) => `${link.id}:${link.value}`).join(','),
     )
   }
+  if (query.value.giphy) {
+    canonicalParams.set('giphy', query.value.giphy)
+  }
+  if (query.value.bannerGiphy) {
+    canonicalParams.set('bannerGiphy', query.value.bannerGiphy)
+  }
   if (query.value.theme !== DEFAULT_THEME_NAME) {
     canonicalParams.set('theme', query.value.theme)
+  }
+  if (query.value.outline !== DEFAULT_OUTLINE_STYLE) {
+    canonicalParams.set('outline', query.value.outline)
   }
 
   const effects: string[] = []
@@ -156,13 +178,17 @@ cardRoutes.get('/card', async (context) => {
     return context.redirect(`${requestUrl.pathname}?${canonicalQuery}`, 307)
   }
 
-  let profile: ProfileCardData | undefined
+  let profile: GitHubProfile | undefined
+  let badgeEvaluation: BadgeEvaluation | undefined
   if (query.value.username) {
     try {
       profile = await fetchGitHubProfile(query.value.username, {
         token: process.env.GITHUB_TOKEN,
         includeAvatar: query.value.sections.includes('profile'),
       })
+      if (query.value.sections.includes('profile')) {
+        badgeEvaluation = evaluateBadges(profile)
+      }
     } catch (error) {
       const serviceError =
         error instanceof GitHubServiceError
@@ -180,11 +206,65 @@ cardRoutes.get('/card', async (context) => {
     }
   }
 
+  let giphyGif: GiphyGif | undefined
+  if (query.value.giphy) {
+    try {
+      giphyGif = await fetchGiphyGif(query.value.giphy, {
+        apiKey: process.env.GIPHY_API_KEY,
+      })
+    } catch (error) {
+      const serviceError =
+        error instanceof GiphyServiceError
+          ? error
+          : new GiphyServiceError('upstream_error')
+      return svgErrorResponse({
+        code: serviceError.code,
+        title: 'Card unavailable',
+        message: serviceError.message,
+        theme: query.value.theme,
+        width: CARD_WIDTH,
+        height: 120,
+        status: 200,
+      })
+    }
+  }
+
+  let bannerGif: GiphyGif | undefined
+  if (query.value.bannerGiphy) {
+    if (
+      query.value.bannerGiphy === query.value.giphy &&
+      giphyGif !== undefined
+    ) {
+      bannerGif = giphyGif
+    } else {
+      try {
+        bannerGif = await fetchGiphyGif(query.value.bannerGiphy, {
+          apiKey: process.env.GIPHY_API_KEY,
+        })
+      } catch (error) {
+        const serviceError =
+          error instanceof GiphyServiceError
+            ? error
+            : new GiphyServiceError('upstream_error')
+        return svgErrorResponse({
+          code: serviceError.code,
+          title: 'Card unavailable',
+          message: serviceError.message,
+          theme: query.value.theme,
+          width: CARD_WIDTH,
+          height: 120,
+          status: 200,
+        })
+      }
+    }
+  }
+
   const sections: CardSection[] = query.value.sections.map((name, index, list) => {
     switch (name) {
       case 'profile':
         return createProfileSection(profile!, {
           pairWithStats: list[index + 1] === 'stats',
+          badgeEvaluation: badgeEvaluation!,
         })
       case 'stats':
         return createStatsSection(profile!, {
@@ -193,17 +273,26 @@ cardRoutes.get('/card', async (context) => {
       case 'skills':
         return createSkillsSection(resolvedSkills.skills, {
           labels: query.value.labels,
+          iconTheme: query.value.iconTheme,
         })
+      case 'projects':
+        return createProjectsSection(profile!.pinnedRepositories)
+      case 'contributions':
+        return createContributionsSection(profile!.contributionCalendar)
       case 'contact':
         return createContactSection(resolvedContact.links)
       case 'donate':
         return createDonateSection(resolvedDonate.links)
+      case 'giphy':
+        return createGiphySection(giphyGif!)
     }
   })
 
   return svgResponse(
     renderCard({
       theme: query.value.theme,
+      bannerGif,
+      outline: query.value.outline,
       sections,
       effects: query.value.effects,
     }),

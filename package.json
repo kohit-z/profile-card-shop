@@ -14,6 +14,7 @@
     "build": "npm run typecheck && rm -rf dist && esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --sourcemap --outfile=dist/index.js"
   },
   "dependencies": {
+    "@iconify-json/skill-icons": "^1.2.4",
     "hono": "^4.12.31",
     "simple-icons": "^16.27.0"
   },

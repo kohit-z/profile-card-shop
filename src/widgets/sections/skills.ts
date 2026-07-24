@@ -1,32 +1,94 @@
-import type { SkillDefinition } from '../../data/skills.js'
-import { escapeXml } from '../../lib/svg.js'
-import { defineCardSection, type CardSection } from '../card.js'
+import { renderItemOutlineRect } from '../../data/outline-style.js'
+import type { SkillIconTheme } from '../../data/skill-style.js'
+import {
+  resolveSkillIconBody,
+  resolveSkillIconName,
+  type SkillDefinition,
+} from '../../data/skills.js'
+import { escapeXml, truncateText } from '../../lib/svg.js'
+import type { ThemeName } from '../../themes/index.js'
+import { CARD_WIDTH, defineCardSection, type CardSection } from '../card.js'
 
-const CARD_PADDING = 18
-const TITLE_HEIGHT = 48
+const CARD_PADDING = 22
+const TITLE_HEIGHT = 46
 const CELL_GAP = 12
 const LABELED_CELL_WIDTH = 150
 const ICON_CELL_WIDTH = 68
-const LABELED_CELL_HEIGHT = 72
+const LABELED_CELL_HEIGHT = 74
 const ICON_CELL_HEIGHT = 60
 const ICON_SIZE = 34
+const ICON_VIEWBOX = 256
+const MIN_LABELED_CELL_WIDTH = 118
+const MIN_ICON_CELL_WIDTH = 52
+const LABEL_INSET_LEFT = 14
+const LABEL_GAP_AFTER_ICON = 12
+const LABEL_INSET_RIGHT = 12
+const LABEL_FONT_SIZE = 13.5
+/** Approximate advance width for semibold label text at `LABEL_FONT_SIZE`. */
+const LABEL_CHAR_WIDTH = LABEL_FONT_SIZE * 0.58
 
 export interface SkillsSectionOptions {
   readonly labels?: boolean
   readonly columns?: number
+  readonly width?: number
+  readonly iconTheme?: SkillIconTheme
 }
 
 export interface SkillsLayout {
   readonly columns: number
   readonly rows: number
   readonly preferredCellWidth: number
+  readonly cellWidth: number
   readonly cellHeight: number
   readonly width: number
   readonly height: number
 }
 
-export function getSkillsColumnCount(skillCount: number): number {
-  return Math.min(5, Math.max(1, Math.ceil(Math.sqrt(skillCount))))
+function preferredCellWidthFor(labels: boolean): number {
+  return labels ? LABELED_CELL_WIDTH : ICON_CELL_WIDTH
+}
+
+function minCellWidthFor(labels: boolean): number {
+  return labels ? MIN_LABELED_CELL_WIDTH : MIN_ICON_CELL_WIDTH
+}
+
+/** How many skill cells fit across `availableWidth` at the preferred size. */
+export function getSkillsColumnCount(
+  skillCount: number,
+  availableWidth?: number,
+  labels = true,
+): number {
+  const preferred = preferredCellWidthFor(labels)
+  const minCell = minCellWidthFor(labels)
+  const width = availableWidth ?? CARD_WIDTH - CARD_PADDING * 2
+  const maxByPreferred = Math.max(
+    1,
+    Math.floor((width + CELL_GAP) / (preferred + CELL_GAP)),
+  )
+  let columns = Math.min(Math.max(1, skillCount), maxByPreferred)
+
+  while (columns > 1) {
+    const cellWidth =
+      (width - Math.max(0, columns - 1) * CELL_GAP) / columns
+    if (cellWidth >= minCell) break
+    columns -= 1
+  }
+
+  return columns
+}
+
+function resolveCellWidth(
+  columns: number,
+  availableWidth: number,
+  labels: boolean,
+): number {
+  const preferred = preferredCellWidthFor(labels)
+  const minCell = minCellWidthFor(labels)
+  const gaps = Math.max(0, columns - 1) * CELL_GAP
+  const stretched = (availableWidth - gaps) / columns
+  // Prefer compact cells; only shrink when the row cannot fit preferred width.
+  if (stretched >= preferred) return preferred
+  return Math.max(minCell, stretched)
 }
 
 export function resolveSkillsLayout(
@@ -34,28 +96,44 @@ export function resolveSkillsLayout(
   options: SkillsSectionOptions = {},
 ): SkillsLayout {
   const labels = options.labels ?? true
-  const columns = Math.min(
-    5,
-    Math.max(1, Math.floor(options.columns ?? getSkillsColumnCount(skillCount))),
+  const frameWidth = options.width ?? CARD_WIDTH
+  const available = frameWidth - CARD_PADDING * 2
+  const columns = Math.max(
+    1,
+    Math.floor(
+      options.columns ?? getSkillsColumnCount(skillCount, available, labels),
+    ),
   )
   const rows = Math.ceil(skillCount / columns)
-  const preferredCellWidth = labels ? LABELED_CELL_WIDTH : ICON_CELL_WIDTH
+  const preferredCellWidth = preferredCellWidthFor(labels)
+  const cellWidth = resolveCellWidth(columns, available, labels)
   const cellHeight = labels ? LABELED_CELL_HEIGHT : ICON_CELL_HEIGHT
   return {
     columns,
     rows,
     preferredCellWidth,
+    cellWidth,
     cellHeight,
-    width:
-      CARD_PADDING * 2 +
-      columns * preferredCellWidth +
-      Math.max(0, columns - 1) * CELL_GAP,
+    width: frameWidth,
     height:
       TITLE_HEIGHT +
       rows * cellHeight +
       Math.max(0, rows - 1) * CELL_GAP +
       CARD_PADDING,
   }
+}
+
+function renderSkillIcon(
+  skill: SkillDefinition,
+  themeName: ThemeName,
+  iconX: number,
+  iconY: number,
+): string {
+  const body = resolveSkillIconBody(skill, themeName)
+  const iconName = resolveSkillIconName(skill, themeName)
+  const scale = ICON_SIZE / ICON_VIEWBOX
+
+  return `<g transform="translate(${iconX} ${iconY}) scale(${scale})" data-icon="${escapeXml(iconName)}">${body}</g>`
 }
 
 export function createSkillsSection(
@@ -67,8 +145,9 @@ export function createSkillsSection(
   }
 
   const labels = options.labels ?? true
+  const iconTheme = options.iconTheme ?? 'accent'
   const layout = resolveSkillsLayout(skills.length, options)
-  const { columns, rows, cellHeight, height } = layout
+  const { columns, rows, cellWidth, cellHeight, height } = layout
   const names = skills.map((skill) => skill.label).join(', ')
 
   return defineCardSection({
@@ -76,33 +155,50 @@ export function createSkillsSection(
     height,
     title: `Skills: ${names}`,
     description: `A skills section showing ${skills.length} ${skills.length === 1 ? 'skill' : 'skills'}: ${names}.`,
-    render: ({ frame, theme, fontFamily }) => {
-      const available =
-        frame.width - CARD_PADDING * 2 - Math.max(0, columns - 1) * CELL_GAP
-      const cellWidth = available / columns
+    payload: { type: 'skills', skills, labels, iconTheme },
+    render: ({ frame, theme, fontFamily, outline }) => {
       const groups = skills
         .map((skill, index) => {
           const column = index % columns
           const row = Math.floor(index / columns)
           const x = CARD_PADDING + column * (cellWidth + CELL_GAP)
           const y = frame.y + TITLE_HEIGHT + row * (cellHeight + CELL_GAP)
-          const iconX = labels ? x + 16 : x + (cellWidth - ICON_SIZE) / 2
-          const iconY = labels ? y + 19 : y + (cellHeight - ICON_SIZE) / 2
+          const iconX = labels
+            ? x + LABEL_INSET_LEFT
+            : x + (cellWidth - ICON_SIZE) / 2
+          const iconY = y + (cellHeight - ICON_SIZE) / 2
+          const labelX = iconX + ICON_SIZE + LABEL_GAP_AFTER_ICON
+          const maxLabelWidth = Math.max(
+            0,
+            cellWidth - (labelX - x) - LABEL_INSET_RIGHT,
+          )
+          const maxLabelChars = Math.max(
+            1,
+            Math.floor(maxLabelWidth / LABEL_CHAR_WIDTH),
+          )
           const label = labels
-            ? `<text x="${iconX + ICON_SIZE + 12}" y="${y + 42}" font-family="${fontFamily}" font-size="14" font-weight="600" fill="${theme.colors.foreground}">${escapeXml(skill.label)}</text>`
+            ? `<text x="${labelX}" y="${y + cellHeight / 2 + 5}" font-family="${fontFamily}" font-size="${LABEL_FONT_SIZE}" font-weight="600" fill="${theme.colors.foreground}">${escapeXml(truncateText(skill.label, maxLabelChars))}</text>`
             : ''
           return `<g data-skill="${escapeXml(skill.id)}" data-category="${skill.category}" aria-label="${escapeXml(skill.label)}">
-  <rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" rx="9" fill="${theme.colors.background}" fill-opacity="0.72" stroke="${theme.colors.border}" />
-  <g transform="translate(${iconX} ${iconY}) scale(${ICON_SIZE / 24})" color="${theme.colors.foreground}">
-    <path d="${escapeXml(skill.icon.path)}" fill="currentColor" />
-  </g>
+  ${renderItemOutlineRect({
+    x,
+    y,
+    width: cellWidth,
+    height: cellHeight,
+    fill: theme.colors.background,
+    fillOpacity: 0.75,
+    borderColor: theme.colors.border,
+    outline,
+    radiusFallback: 10,
+  })}
+  ${renderSkillIcon(skill, theme.name, iconX, iconY)}
   ${label}
 </g>`
         })
         .join('\n')
 
-      return `<g data-labels="${labels}" data-columns="${columns}" data-rows="${rows}">
-  <text x="${CARD_PADDING}" y="${frame.y + 32}" font-family="${fontFamily}" font-size="${theme.typography.titleSize}" font-weight="700" fill="${theme.colors.foreground}">Skills</text>
+      return `<g data-labels="${labels}" data-columns="${columns}" data-rows="${rows}" data-icon-theme="${iconTheme}" data-outline="${outline}">
+  <text x="${CARD_PADDING}" y="${frame.y + 30}" font-family="${fontFamily}" font-size="17" font-weight="700" fill="${theme.colors.foreground}">Skills</text>
 ${groups}
 </g>`
     },

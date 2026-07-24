@@ -3,7 +3,9 @@ import {
   resolveEffectName,
   type EffectName,
 } from '../effects/index.js'
+import type { BadgeEvaluation } from '../data/badges.js'
 import { truncateText } from '../lib/svg.js'
+import type { GiphyGif } from '../services/giphy.js'
 import type { ThemeName } from '../themes/index.js'
 import { CARD_WIDTH, renderCard, type CardEffects } from './card.js'
 import {
@@ -20,6 +22,11 @@ export const PROFILE_CARD_WIDTH = CARD_WIDTH
 export const PROFILE_CARD_HEIGHT =
   LEGACY_OVERLAPPING_PROFILE_SECTION_HEIGHT + STATS_SECTION_HEIGHT
 
+export interface RenderProfileCardOptions {
+  readonly bannerGif?: GiphyGif
+  readonly badgeEvaluation?: BadgeEvaluation
+}
+
 function legacyEffectSelection(effectName?: EffectName | string | null): CardEffects {
   const effect = resolveEffectName(effectName)
   const target = EFFECT_CATALOG[effect].target
@@ -35,13 +42,15 @@ export function renderProfileCard(
   profile: ProfileCardData,
   themeName: ThemeName,
   effectName?: EffectName | string | null,
+  options: RenderProfileCardOptions = {},
 ): string {
   const effect = resolveEffectName(effectName)
   const bio = truncateText(profile.bio?.trim() || 'GitHub profile', 78)
   return renderCard({
     theme: themeName,
+    bannerGif: options.bannerGif,
     sections: [
-      createLegacyOverlappingProfileSection(profile),
+      createLegacyOverlappingProfileSection(profile, options.badgeEvaluation),
       createStatsSection(profile, { besideAvatar: true }),
     ],
     effects: legacyEffectSelection(effect),

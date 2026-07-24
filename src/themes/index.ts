@@ -1,9 +1,18 @@
-export const THEME_NAMES = ['default', 'dark', 'ocean', 'sunset'] as const
+import type { ThemeRenderContext } from '../widgets/card.js'
+import { renderClassicCard } from './renderers/classic.js'
+import { renderNebulaCard } from './renderers/nebula.js'
+
+export const THEME_NAMES = ['default', 'nebula'] as const
 
 export type ThemeName = (typeof THEME_NAMES)[number]
 
 export interface Theme {
   readonly name: ThemeName
+  /**
+   * Themes own the complete SVG composition. They may use, move, resize, or
+   * replace every section while reading its semantic payload.
+   */
+  readonly renderCard: (context: ThemeRenderContext) => string
   readonly colors: {
     readonly background: string
     readonly foreground: string
@@ -34,6 +43,7 @@ export const DEFAULT_THEME_NAME: ThemeName = 'default'
 export const THEMES = {
   default: {
     name: 'default',
+    renderCard: renderClassicCard,
     colors: {
       background: '#ffffff',
       foreground: '#24292f',
@@ -54,90 +64,36 @@ export const THEMES = {
       titleSize: 20,
     },
     card: {
-      radius: 12,
+      radius: 14,
       borderWidth: 1,
       shadow: '0 4px 12px rgba(31,35,40,0.08)',
     },
   },
-  dark: {
-    name: 'dark',
+  nebula: {
+    name: 'nebula',
+    renderCard: renderNebulaCard,
     colors: {
-      background: '#0d1117',
-      foreground: '#e6edf3',
-      muted: '#8b949e',
-      accent: '#58a6ff',
-      border: '#30363d',
-      error: '#ff7b72',
-    },
-    gradient: {
-      from: '#161b22',
-      to: '#0d1117',
-      angle: 135,
-    },
-    typography: {
-      fontFamily:
-        "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      bodySize: 14,
-      titleSize: 20,
-    },
-    card: {
-      radius: 12,
-      borderWidth: 1,
-      shadow: '0 4px 16px rgba(0,0,0,0.3)',
-    },
-  },
-  ocean: {
-    name: 'ocean',
-    colors: {
-      background: '#071e2b',
-      foreground: '#e1f5fe',
-      muted: '#90caf9',
-      accent: '#29b6f6',
-      border: '#1565c0',
+      background: '#232428',
+      foreground: '#f2f3f5',
+      muted: '#949ba4',
+      accent: '#8776ff',
+      border: '#3a3c42',
       error: '#ff8a80',
     },
     gradient: {
-      from: '#0d47a1',
-      to: '#006064',
-      angle: 135,
+      from: '#2b2d31',
+      to: '#232428',
+      angle: 180,
     },
     typography: {
-      fontFamily:
-        "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontFamily: "'Manrope', -apple-system, BlinkMacSystemFont, sans-serif",
       bodySize: 14,
       titleSize: 20,
     },
     card: {
-      radius: 12,
+      radius: 24,
       borderWidth: 1,
-      shadow: '0 5px 18px rgba(0,96,100,0.3)',
-    },
-  },
-  sunset: {
-    name: 'sunset',
-    colors: {
-      background: '#2d1b35',
-      foreground: '#fff3e0',
-      muted: '#ffccbc',
-      accent: '#ff8a65',
-      border: '#ab47bc',
-      error: '#ffab91',
-    },
-    gradient: {
-      from: '#6a1b9a',
-      to: '#e65100',
-      angle: 135,
-    },
-    typography: {
-      fontFamily:
-        "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      bodySize: 14,
-      titleSize: 20,
-    },
-    card: {
-      radius: 12,
-      borderWidth: 1,
-      shadow: '0 5px 18px rgba(74,20,140,0.3)',
+      shadow: '0 30px 80px -20px rgba(0,0,0,0.6)',
     },
   },
 } as const satisfies Record<ThemeName, Theme>
